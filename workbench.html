@@ -1,0 +1,2519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTM 智能协作工作台 · 子工作台 × SKILL × CMS 对接（原型）</title>
+  <style>
+    :root {
+      --import: #2563eb;
+      --export: #16a34a;
+      --process: #d97706;
+      --compliance: #dc2626;
+      --tax: #7c3aed;
+      --bg: #f1f5f9;
+      --sidebar: #0f172a;
+      --sidebar-hover: #1e293b;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --accent-line: #3b82f6;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .shell {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* —— 侧边栏（参考 HSCS 树形菜单，扩展为贵司子工作台） —— */
+    .sidebar {
+      width: 268px;
+      min-width: 268px;
+      background: var(--sidebar);
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #334155;
+    }
+
+    .sidebar-brand {
+      padding: 16px 14px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .sidebar-brand h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .sidebar-brand p {
+      margin: 6px 0 0;
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .nav-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0 16px;
+    }
+
+    .nav-group-label {
+      padding: 10px 14px 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748b;
+    }
+
+    .nav-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border: none;
+      background: transparent;
+      color: #cbd5e1;
+      padding: 9px 14px 9px 18px;
+      font-size: 13px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      font-family: inherit;
+    }
+
+    .nav-item:hover { background: var(--sidebar-hover); color: #fff; }
+
+    .nav-item.active {
+      background: var(--sidebar-hover);
+      color: #fff;
+      border-left-color: var(--accent-line);
+      font-weight: 600;
+    }
+
+    .nav-sub {
+      padding-left: 8px;
+    }
+
+    .nav-sub .nav-item { padding-left: 28px; font-size: 12.5px; }
+
+    .nav-tag {
+      float: right;
+      font-size: 10px;
+      background: #334155;
+      color: #94a3b8;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .nav-item.active .nav-tag { background: #1d4ed8; color: #e0e7ff; }
+
+    .sidebar-foot {
+      padding: 10px 14px;
+      font-size: 11px;
+      color: #64748b;
+      border-top: 1px solid #334155;
+    }
+
+    .cms-sync-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    /* —— 主区域 —— */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--bg);
+    }
+
+    .topbar {
+      height: 52px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      flex-shrink: 0;
+    }
+
+    .topbar-title { font-weight: 700; font-size: 15px; }
+
+    .topbar-meta { font-size: 12px; color: var(--muted); }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .analytics-link {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1d4ed8;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      white-space: nowrap;
+    }
+
+    .analytics-link:hover { background: #dbeafe; }
+
+    .sidebar-brand .analytics-mini {
+      display: block;
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #93c5fd;
+      text-decoration: none;
+    }
+
+    .sidebar-brand .analytics-mini:hover { color: #fff; }
+
+    .content {
+      flex: 1;
+      overflow: auto;
+      padding: 16px 20px 24px;
+    }
+
+    .panel-hidden { display: none !important; }
+
+    /* 总览：五大卡 + KPI + 智能体 */
+    .overview-grid-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 1200px) {
+      .overview-grid-cards { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 900px) {
+      .overview-grid-cards { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .mini-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      border-left: 4px solid var(--c);
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    }
+
+    .mini-card .t { font-size: 12px; font-weight: 700; }
+    .mini-card .n { font-size: 22px; font-weight: 800; color: var(--c); margin-top: 4px; }
+    .mini-card .s { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .c-import { --c: var(--import); }
+    .c-export { --c: var(--export); }
+    .c-process { --c: var(--process); }
+    .c-compliance { --c: var(--compliance); }
+    .c-tax { --c: var(--tax); }
+    .c-commodity { --c: #0891b2; }
+    .c-overseas { --c: #0e7490; }
+    .c-hk { --c: #b45309; }
+    .c-return { --c: #be185d; }
+    .c-demand { --c: #0f766e; }
+    .c-fee { --c: #7c2d12; }
+    .c-aeo { --c: #5b21b6; }
+
+    .kpi-panel, .agents-row-panel {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .kpi-panel h3, .agents-row-panel h3 { margin: 0 0 12px; font-size: 14px; }
+
+    .kpi-lines { display: grid; gap: 8px; }
+    .kpi-line {
+      display: grid;
+      grid-template-columns: 180px 1fr 44px;
+      gap: 10px;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .kpi-bar-bg {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .kpi-bar-fg { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a); border-radius: 99px; }
+
+    .agents-mini {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 8px;
+    }
+
+    @media (max-width: 1400px) {
+      .agents-mini { grid-template-columns: repeat(6, 1fr); }
+    }
+
+    @media (max-width: 720px) {
+      .agents-mini { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    .agent-pill {
+      font-size: 10px;
+      padding: 8px 6px;
+      border-radius: 6px;
+      text-align: center;
+      color: #fff;
+      font-weight: 600;
+      line-height: 1.25;
+      cursor: default;
+    }
+
+    /* 今日需求 / AI 处理 / 人工待办（各工作台首行） */
+    .today-scope {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .today-demand-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 768px) {
+      .today-demand-strip { grid-template-columns: 1fr; }
+    }
+
+    .td-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      border-top: 3px solid var(--td-accent);
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+
+    .td-box .td-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .td-box .td-num {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+
+    .td-box .td-unit {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    .td-box .td-hint {
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .td-demand { --td-accent: #2563eb; }
+    .td-ai { --td-accent: #7c3aed; }
+    .td-manual { --td-accent: #ea580c; }
+
+    /* 海外关务：清关及时率 + 全周期里程碑 */
+    .overseas-lane-panel {
+      background: linear-gradient(180deg, #ecfeff 0%, #f8fafc 48%, #fff 100%);
+      border: 1px solid #a5f3fc;
+      border-radius: var(--radius);
+      padding: 16px 18px 18px;
+      margin-bottom: 14px;
+    }
+
+    .overseas-lane-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .overseas-lane-head h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: #0e7490;
+    }
+
+    .lane-sub {
+      margin: 0;
+      font-size: 11px;
+      color: var(--muted);
+      max-width: 520px;
+    }
+
+    .clearance-kpi-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 900px) {
+      .clearance-kpi-grid { grid-template-columns: 1fr; }
+    }
+
+    .clr-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      border-left: 4px solid #0e7490;
+    }
+
+    .clr-card.secondary {
+      border-left-color: #64748b;
+    }
+
+    .clr-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .clr-num {
+      font-size: 24px;
+      font-weight: 800;
+      color: #0f766e;
+      letter-spacing: -0.02em;
+    }
+
+    .clr-unit {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f766e;
+      margin-left: 2px;
+    }
+
+    .clr-meta {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .milestone-block h4 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .sample-ref {
+      font-weight: 600;
+      color: #0369a1;
+      font-size: 12px;
+    }
+
+    .milestone-hint {
+      margin: 0 0 10px;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    table.milestone-table {
+      min-width: 720px;
+      font-size: 12px;
+    }
+
+    table.milestone-table .ms-done { color: #166534; font-weight: 600; }
+    table.milestone-table .ms-wait { color: #b45309; font-weight: 600; }
+    table.milestone-table .ms-delay { color: #b91c1c; font-weight: 600; }
+    table.milestone-table .ms-plan { color: var(--muted); }
+
+    .mt-query-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+    }
+
+    .mt-query-bar label {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .mt-query-bar input[type="text"] {
+      min-width: 220px;
+      flex: 1;
+      max-width: 360px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .mt-query-tip {
+      font-size: 11px;
+      color: var(--muted);
+      flex-basis: 100%;
+    }
+
+    .milestone-timeline {
+      overflow-x: auto;
+      padding: 8px 4px 16px;
+      margin-bottom: 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .mt-rail {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      min-width: min-content;
+      gap: 0;
+    }
+
+    .mt-step {
+      flex: 0 0 auto;
+      width: 92px;
+      text-align: center;
+      font-size: 10px;
+    }
+
+    .mt-dot-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 6px;
+    }
+
+    .mt-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .mt-step.mt-done .mt-dot { background: #16a34a; box-shadow: 0 0 0 3px #dcfce7; }
+    .mt-step.mt-warn .mt-dot { background: #f59e0b; box-shadow: 0 0 0 3px #fef3c7; }
+    .mt-step.mt-pending .mt-dot { background: #fff; border: 2px solid #94a3b8; }
+
+    .mt-conn {
+      flex: 1 1 12px;
+      min-width: 8px;
+      max-width: 40px;
+      height: 3px;
+      background: #e2e8f0;
+      align-self: center;
+      border-radius: 2px;
+    }
+
+    .mt-conn.mt-conn-done { background: linear-gradient(90deg, #4ade80, #86efac); }
+
+    .mt-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.25;
+      margin-bottom: 4px;
+    }
+
+    .mt-dates {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      color: var(--muted);
+      font-size: 9px;
+      line-height: 1.2;
+    }
+
+    .mt-d-act { color: #0369a1; font-weight: 600; }
+
+    .mt-st {
+      margin-top: 4px;
+      font-size: 9px;
+      font-weight: 600;
+    }
+
+    .mt-done .mt-st { color: #166534; }
+    .mt-warn .mt-st { color: #b45309; }
+    .mt-pending .mt-st { color: #64748b; }
+
+    .milestone-subhint {
+      margin: 0 0 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    /* 列表工作台（HSCS 风格） */
+    .breadcrumb {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .breadcrumb strong { color: var(--text); }
+
+    .cms-bridge {
+      background: linear-gradient(90deg, #eff6ff, #fff);
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 16px;
+    }
+
+    .cms-bridge b { color: #1e40af; }
+
+    .skill-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .skill-chip {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 99px;
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+
+    .skill-chip.run::after {
+      content: " · 运行中";
+      font-weight: 700;
+      color: #b45309;
+    }
+
+    .filter-board {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .field input, .field select {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .filter-actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 7px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+    }
+
+    .table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: auto;
+    }
+
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 1100px;
+    }
+
+    table.data th {
+      text-align: left;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    table.data td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    table.data tr:hover td { background: #f8fafc; }
+
+    .link { color: #2563eb; cursor: pointer; text-decoration: underline; }
+
+    .badge-st {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .st-warn { background: #fef3c7; color: #92400e; }
+    .st-ok { background: #dcfce7; color: #166534; }
+    .st-risk { background: #fee2e2; color: #991b1b; }
+
+    .risk-mini { font-size: 11px; color: var(--muted); }
+
+    .skill-out {
+      font-size: 11px;
+      line-height: 1.4;
+      max-width: 280px;
+    }
+
+    .skill-out em { color: #0369a1; font-style: normal; font-weight: 600; }
+
+    footer.note {
+      margin-top: 16px;
+      font-size: 11px;
+      color: var(--muted);
+      max-width: 900px;
+    }
+
+    /* —— 关务合规智能体架构专页（对齐体系蓝图：事前/事中/事后 + 双底座） —— */
+    .cmp-arch-intro {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.55;
+      margin: 0 0 14px;
+      max-width: 960px;
+    }
+
+    .cmp-arch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 1100px) {
+      .cmp-arch-grid { grid-template-columns: 1fr; }
+    }
+
+    .cmp-phase {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 14px 16px 16px;
+      border-top: 4px solid var(--cmp-phase-color);
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+
+    .cmp-phase-pre { --cmp-phase-color: #2563eb; }
+    .cmp-phase-during { --cmp-phase-color: #16a34a; }
+    .cmp-phase-post { --cmp-phase-color: #ea580c; }
+
+    .cmp-phase h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .cmp-phase ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    .cmp-phase li { margin-bottom: 6px; }
+
+    .cmp-spot {
+      margin-top: 12px;
+      padding: 9px 11px;
+      background: #fef9c3;
+      border: 1px solid #eab308;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #854d0e;
+      line-height: 1.45;
+    }
+
+    .cmp-foundation-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .cmp-foundation-row { grid-template-columns: 1fr; }
+    }
+
+    .cmp-found {
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .cmp-found-aeo {
+      border-left: 4px solid #dc2626;
+      background: linear-gradient(180deg, #fef2f2 0%, #fff 38%);
+    }
+
+    .cmp-found-customs {
+      border-left: 4px solid #7c3aed;
+      background: linear-gradient(180deg, #f5f3ff 0%, #fff 38%);
+    }
+
+    .cmp-found h4 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .cmp-found ul { margin: 0; padding-left: 18px; color: var(--text); }
+
+    .cmp-section-title {
+      margin: 18px 0 10px;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .cmp-path-table td:first-child {
+      font-weight: 700;
+      white-space: nowrap;
+      background: #f8fafc;
+    }
+
+    /* 合规子工作台列表顶：关务合规智能体 → 本模块拆解（随当前菜单切换） */
+    .compliance-agent-strip {
+      background: linear-gradient(135deg, #fef2f2 0%, #f8fafc 42%, #eff6ff 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      line-height: 1.52;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .compliance-agent-strip.panel-hidden {
+      display: none !important;
+    }
+
+    .cas-head {
+      font-weight: 800;
+      color: #991b1b;
+      margin-bottom: 8px;
+      font-size: 13px;
+      letter-spacing: -0.02em;
+    }
+
+    .cas-row {
+      margin-bottom: 7px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .cas-row > span:last-child {
+      flex: 1;
+      color: var(--text);
+    }
+
+    .cas-tag {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 4px;
+      color: #fff;
+      line-height: 1.3;
+    }
+
+    .cas-pre { background: #2563eb; }
+    .cas-mid { background: #16a34a; }
+    .cas-post { background: #ea580c; }
+    .cas-aeo { background: #dc2626; }
+    .cas-reg { background: #7c3aed; }
+
+    .cas-path {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #cbd5e1;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .cas-path strong { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="sidebar-brand">
+        <h1>关务智能协作工作台</h1>
+        <p>子工作台 × SKILL × 原 CMS / TCS 模块任务聚合（原型）</p>
+        <a class="analytics-mini" href="customs-operations-analytics-dashboard.html">关务部工作经营分析看板 →</a>
+      </div>
+      <nav class="nav-scroll">
+        <div class="nav-group-label">总览</div>
+        <button type="button" class="nav-item active" data-panel="overview">智能体总览与 KPI</button>
+
+        <div class="nav-group-label">业务工作台</div>
+        <button type="button" class="nav-item" data-panel="import-hub">中国进口管理（子工作台） <span class="nav-tag">19</span></button>
+        <div class="nav-sub">
+          <button type="button" class="nav-item" data-panel="import">中国进口管理工作台 <span class="nav-tag">12</span></button>
+          <button type="button" class="nav-item" data-panel="tax">进口税金监控工作台 <span class="nav-tag">7</span></button>
+        </div>
+
+        <button type="button" class="nav-item" data-panel="export-hub">中国出口管理（子工作台） <span class="nav-tag">6</span></button>
+        <div class="nav-sub">
+          <button type="button" class="nav-item" data-panel="export-parts">部件出口关务工作台 <span class="nav-tag">3</span></button>
+          <button type="button" class="nav-item" data-panel="export-machine">整机出口关务工作台 <span class="nav-tag">2</span></button>
+          <button type="button" class="nav-item" data-panel="export-other">孵化公司出口工作台 <span class="nav-tag">1</span></button>
+        </div>
+
+        <button type="button" class="nav-item" data-panel="pt-hub">中国加工贸易（子工作台） <span class="nav-tag">4</span></button>
+        <div class="nav-sub">
+          <button type="button" class="nav-item" data-panel="pt-domestic">内销补税工作台 <span class="nav-tag">1</span></button>
+          <button type="button" class="nav-item" data-panel="pt-transfer">加贸调拨审批工作台 <span class="nav-tag">1</span></button>
+          <button type="button" class="nav-item" data-panel="pt-balance">加贸账务平衡工作台 <span class="nav-tag">2</span></button>
+        </div>
+
+        <button type="button" class="nav-item" data-panel="return-repair">中国退运维修进出口工作台 <span class="nav-tag">3</span></button>
+
+        <div class="nav-group-label">海外关务管理</div>
+        <button type="button" class="nav-item" data-panel="overseas-hub">海外关务管理（子工作台） <span class="nav-tag">4</span></button>
+        <div class="nav-sub">
+          <button type="button" class="nav-item" data-panel="export-us">美国子公司关务工作台 <span class="nav-tag">1</span></button>
+          <button type="button" class="nav-item" data-panel="export-in">印度子公司关务工作台 <span class="nav-tag">1</span></button>
+          <button type="button" class="nav-item" data-panel="export-nl">荷兰子公司关务工作台 <span class="nav-tag">1</span></button>
+          <button type="button" class="nav-item" data-panel="export-factory">海外加工厂关务工作台 <span class="nav-tag">1</span></button>
+        </div>
+
+        <div class="nav-group-label">香港进出口清关</div>
+        <button type="button" class="nav-item" data-panel="hk-import">香港进口清关工作台 <span class="nav-tag">4</span></button>
+        <button type="button" class="nav-item" data-panel="hk-export">香港出口清关工作台 <span class="nav-tag">4</span></button>
+
+        <div class="nav-group-label">商品与归类</div>
+        <button type="button" class="nav-item" data-panel="commodity">商品编码工作台 <span class="nav-tag">2</span></button>
+
+        <div class="nav-group-label">关务需求与智能</div>
+        <button type="button" class="nav-item" data-panel="customs-demand">关务需求智能体（工作台） <span class="nav-tag">23</span></button>
+
+        <div class="nav-group-label">报关行资源和费用管理</div>
+        <button type="button" class="nav-item" data-panel="customs-fee">报关费用工作台 <span class="nav-tag">14</span></button>
+        <button type="button" class="nav-item" data-panel="broker-qualification">供应商资质管理 <span class="nav-tag">4</span></button>
+        <button type="button" class="nav-item" data-panel="broker-performance">供应商绩效管理 <span class="nav-tag">4</span></button>
+        <button type="button" class="nav-item" data-panel="broker-share">供应商业务占比份额管理（费用） <span class="nav-tag">2</span></button>
+
+        <div class="nav-group-label">合规管理</div>
+        <button type="button" class="nav-item" data-panel="compliance-hub">合规管理（子工作台） <span class="nav-tag">57</span></button>
+        <div class="nav-sub">
+          <button type="button" class="nav-item" data-panel="compliance">合规综合筛查 <span class="nav-tag">9</span></button>
+          <button type="button" class="nav-item" data-panel="cmp-qualification">申报要素核查 <span class="nav-tag">3</span></button>
+          <button type="button" class="nav-item" data-panel="cmp-origin">原产地变化监控 <span class="nav-tag">6</span></button>
+          <button type="button" class="nav-item" data-panel="cmp-price">价格波动预警 <span class="nav-tag">7</span></button>
+          <button type="button" class="nav-item" data-panel="cmp-hs">HS 合规检查 <span class="nav-tag">8</span></button>
+          <button type="button" class="nav-item" data-panel="cmp-item">物项识别输出 <span class="nav-tag">5</span></button>
+          <button type="button" class="nav-item" data-panel="cmp-audit">海关已下指令正式稽核查 <span class="nav-tag">4</span></button>
+          <button type="button" class="nav-item" data-panel="cmp-cases">合规案例与风险趋势 <span class="nav-tag">3</span></button>
+          <button type="button" class="nav-item" data-panel="cmp-regulatory">监管回执与指令台账 <span class="nav-tag">4</span></button>
+          <button type="button" class="nav-item" data-panel="aeo">AEO 高级认证工作台 <span class="nav-tag">8</span></button>
+        </div>
+
+        <div class="nav-group-label">对接</div>
+        <button type="button" class="nav-item" data-panel="cms-map">CMS-关务模块映射与 SKILL</button>
+      </nav>
+      <div class="sidebar-foot">
+        <span class="cms-sync-dot"></span>对接层状态：轮询同步正常（示意）
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-title" id="topbarTitle">智能体总览与 KPI</div>
+        <div class="topbar-right">
+          <a class="analytics-link" href="customs-operations-analytics-dashboard.html">关务部工作经营分析看板</a>
+          <div class="topbar-meta">集团 · 多法人视图（示意） · 用户：关务监管</div>
+        </div>
+      </header>
+
+      <div class="content">
+        <!-- ========== 总览 ========== -->
+        <div id="panel-overview" class="panel-page">
+          <p class="today-scope" id="overviewTodayScope">今日业务量（各工作台合计 · 示意）</p>
+          <div class="today-demand-strip" id="overviewTodayStrip">
+            <div class="td-box td-demand">
+              <div class="td-label">今日需求量</div>
+              <div class="td-num"><span id="ovTodayDemand">—</span><span class="td-unit">票</span></div>
+              <div class="td-hint">进入本平台的单据/申请总量（含新建与在途）</div>
+            </div>
+            <div class="td-box td-ai">
+              <div class="td-label">AI 智能处理量</div>
+              <div class="td-num"><span id="ovTodayAi">—</span><span class="td-unit">票</span></div>
+              <div class="td-hint">已由 SKILL 完成解析、预审、归类建议等闭环的件数</div>
+            </div>
+            <div class="td-box td-manual">
+              <div class="td-label">人工待办量</div>
+              <div class="td-num"><span id="ovTodayManual">—</span><span class="td-unit">票</span></div>
+              <div class="td-hint">需人工复核、盖章、推送或异常升级尚未关闭</div>
+            </div>
+          </div>
+          <div class="overview-grid-cards">
+            <div class="mini-card c-import"><div class="t">中国进口管理（子工作台）</div><div class="n">19</div><div class="s">进口报关 + 进口税金监控</div></div>
+            <div class="mini-card c-export"><div class="t">中国出口管理（子工作台）</div><div class="n">6</div><div class="s">部件/整机/孵化公司出口</div></div>
+            <div class="mini-card c-process"><div class="t">中国加工贸易（子工作台）</div><div class="n">4</div><div class="s">内销/调拨审批/账务平衡</div></div>
+            <div class="mini-card c-return"><div class="t">中国退运维修进出口工作台</div><div class="n">3</div><div class="s">退回进口 · 复出口</div></div>
+            <div class="mini-card c-overseas"><div class="t">海外关务管理（子工作台）</div><div class="n">4</div><div class="s">美/印/荷子公司 · 海外加工厂</div></div>
+            <div class="mini-card c-hk"><div class="t">香港进口清关</div><div class="n">4</div><div class="s">按公司法人名称 · 进口台账</div></div>
+            <div class="mini-card c-hk"><div class="t">香港出口清关</div><div class="n">4</div><div class="s">按公司法人名称 · 离港/转运</div></div>
+            <div class="mini-card c-commodity"><div class="t">商品编码工作台</div><div class="n">2</div><div class="s">商品归类智能体 · 类 HSCS / iGCM</div></div>
+            <div class="mini-card c-demand"><div class="t">关务需求智能体（工作台）</div><div class="n">23</div><div class="s">企微接入 · 意图分流 · 工单 / 自动答</div></div>
+            <div class="mini-card c-fee"><div class="t">报关行资源和费用</div><div class="n">24</div><div class="s">费用 14 · 资质4·绩效4·份额2</div></div>
+            <div class="mini-card c-compliance"><div class="t">合规管理（子工作台）</div><div class="n">57</div><div class="s">含申报要素核查 · 已下指令稽查 · 案例/监管台账</div></div>
+          </div>
+          <div class="kpi-panel">
+            <h3>智能协作执行状态</h3>
+            <div class="kpi-lines">
+              <div class="kpi-line"><span>需求解析命中率</span><div class="kpi-bar-bg"><div class="kpi-bar-fg" style="width:92%"></div></div><span>92%</span></div>
+              <div class="kpi-line"><span>归类建议采纳率</span><div class="kpi-bar-bg"><div class="kpi-bar-fg" style="width:95%"></div></div><span>95%</span></div>
+              <div class="kpi-line"><span>单证预审规则触达率</span><div class="kpi-bar-bg"><div class="kpi-bar-fg" style="width:78%"></div></div><span>78%</span></div>
+              <div class="kpi-line"><span>影像识别可用率</span><div class="kpi-bar-bg"><div class="kpi-bar-fg" style="width:96%"></div></div><span>96%</span></div>
+              <div class="kpi-line"><span>申报前检查覆盖</span><div class="kpi-bar-bg"><div class="kpi-bar-fg" style="width:70%"></div></div><span>70%</span></div>
+              <div class="kpi-line"><span>预警准确率（人工反馈）</span><div class="kpi-bar-bg"><div class="kpi-bar-fg" style="width:88%"></div></div><span>88%</span></div>
+              <div class="kpi-line"><span>海外清关及时率（四大海外子台汇总 · 示意）</span><div class="kpi-bar-bg"><div class="kpi-bar-fg" style="width:91%"></div></div><span>91%</span></div>
+            </div>
+          </div>
+          <div class="agents-row-panel">
+            <h3>核心流程智能体（SKILL 层统一编排）</h3>
+            <div class="agents-mini">
+              <div class="agent-pill" style="background:#2563eb">需求解析</div>
+              <div class="agent-pill" style="background:#059669;border:2px solid #34d399;font-weight:800">需求智能体</div>
+              <div class="agent-pill" style="background:#4f46e5">关务问答</div>
+              <div class="agent-pill" style="background:#d97706">归类辅助</div>
+              <div class="agent-pill" style="background:#16a34a">制单辅助</div>
+              <div class="agent-pill" style="background:#ea580c">智能预审</div>
+              <div class="agent-pill" style="background:#0d9488">申报跟踪</div>
+              <div class="agent-pill" style="background:#7c3aed">时效督办</div>
+              <div class="agent-pill" style="background:#0891b2">通关反馈</div>
+              <div class="agent-pill" style="background:#dc2626">验核辅助</div>
+              <div class="agent-pill" style="background:#9333ea">税赋辅助</div>
+            </div>
+          </div>
+          <footer class="note">
+            说明：<strong>中国进口管理</strong>含<strong>进口税金监控</strong>；出口含<strong>孵化公司出口</strong>；加贸含<strong>调拨审批</strong>。<strong>香港进出口清关</strong>分为香港进口 / 香港出口两个工作台，列表<strong>公司法人名称</strong>列为香港注册实体全称（示意脱敏）。<strong>商品编码工作台</strong>对齐商品归类智能体与 HSCS/iGCM（AI 税号推荐 + 关务经理确认 + 回写）。<strong>关务需求智能体</strong>为企微接入、知识检索、高/低置信分流与关务经理工单合一入口。<strong>报关行资源和费用</strong>下分<strong>供应商资质管理</strong>（公示信用等级等）、<strong>供应商绩效管理</strong>（KPI/考评，列表<strong>子公司名称</strong>）、<strong>业务占比份额（费用）</strong>三屏。<strong>合规</strong>含<strong>申报要素核查</strong>、<strong>海关已下指令</strong>正式稽核查等。主区列表示意，正式按 API 对接。
+          </footer>
+        </div>
+
+        <!-- ========== 通用列表模板（由 JS 切换文案与行数据） ========== -->
+        <div id="panel-list" class="panel-page panel-hidden">
+          <p class="today-scope" id="listTodayScope">统计口径：当日 00:00–24:00（示意） · <span id="listTodayDate"></span></p>
+          <div class="today-demand-strip" id="listTodayStrip">
+            <div class="td-box td-demand">
+              <div class="td-label">今日需求量</div>
+              <div class="td-num"><span id="tdDemand">—</span><span class="td-unit">票</span></div>
+              <div class="td-hint">本工作台流经任务总量</div>
+            </div>
+            <div class="td-box td-ai">
+              <div class="td-label">AI 智能处理量</div>
+              <div class="td-num"><span id="tdAi">—</span><span class="td-unit">票</span></div>
+              <div class="td-hint">已由 AI/SKILL 自动处理完毕</div>
+            </div>
+            <div class="td-box td-manual">
+              <div class="td-label">人工待办量</div>
+              <div class="td-num"><span id="tdManual">—</span><span class="td-unit">票</span></div>
+              <div class="td-hint">待人工办理或复核</div>
+            </div>
+          </div>
+          <div id="complianceAgentStrip" class="compliance-agent-strip panel-hidden" aria-label="关务合规智能体与本模块映射"></div>
+          <div id="commodityFlowStrip" class="compliance-agent-strip panel-hidden" aria-label="商品归类智能体与 HSCS 能力说明"></div>
+          <div id="demandAgentStrip" class="compliance-agent-strip panel-hidden" aria-label="关务需求智能体能力说明"></div>
+          <div class="breadcrumb" id="bc">工作台 / …</div>
+
+          <div class="cms-bridge" id="cmsBridge">
+            <div><b>对接原 CMS-关务系统</b>：同步模块：<span id="cmsMods">—</span></div>
+            <div>同步方式：任务轮询 + 状态 webhook（示意） · 深链打开原系统办理</div>
+          </div>
+
+          <div class="skill-chips" id="skillChips"></div>
+
+          <div id="overseasLanePanel" class="overseas-lane-panel panel-hidden">
+            <div class="overseas-lane-head">
+              <h3>海外清关与时效 · 全周期管理</h3>
+              <p class="lane-sub" id="overseasLaneSub">覆盖目的港放行 SLA、与国内段单证及船期联动（示意数据）</p>
+            </div>
+            <div class="clearance-kpi-grid">
+              <div class="clr-card">
+                <div class="clr-label">海外清关及时率</div>
+                <div class="clr-num"><span id="clrRate">—</span><span class="clr-unit">%</span></div>
+                <div class="clr-meta" id="clrMeta">在 SLA 窗口内完成目的港放行的票数占比</div>
+              </div>
+              <div class="clr-card secondary">
+                <div class="clr-label">目标值 / 统计窗口</div>
+                <div class="clr-meta" style="margin-top:0;font-size:13px;font-weight:700;color:var(--text)">
+                  目标 <span id="clrTarget">—</span>% · <span id="clrPeriod">—</span>
+                </div>
+                <div class="clr-meta" id="clrRule">口径可在系统参数中配置</div>
+              </div>
+              <div class="clr-card secondary">
+                <div class="clr-label">及时票数 / 总闭合票数</div>
+                <div class="clr-meta" style="margin-top:0;font-size:13px;font-weight:700;color:var(--text)">
+                  <span id="clrNumerator">—</span> / <span id="clrDenominator">—</span>
+                </div>
+                <div class="clr-meta">仅统计已有「放行日期」的样本</div>
+              </div>
+            </div>
+            <div class="milestone-block">
+              <h4>单号全链路 <span class="sample-ref" id="milestoneRef"></span> — 自工厂齐套至结关</h4>
+              <div class="mt-query-bar">
+                <label for="milestoneQueryNo">追踪单号</label>
+                <input type="text" id="milestoneQueryNo" placeholder="集团案号 / 提单号 / 报关单号" autocomplete="off" />
+                <button type="button" class="btn btn-primary">查询全链路</button>
+                <span class="mt-query-tip">原型示意：下方时间轴与表随当前样例单刷新；正式环境对接各节点回写与时间戳，支持一单到底可视化。</span>
+              </div>
+              <div id="milestoneTimeline" class="milestone-timeline" role="region" aria-label="里程碑时间轴"></div>
+              <p class="milestone-hint" id="milestoneHint"></p>
+              <p class="milestone-subhint">节点明细表 · 可导出对账</p>
+              <div class="table-wrap">
+                <table class="data milestone-table">
+                  <thead>
+                    <tr>
+                      <th>序号</th>
+                      <th>节点名称</th>
+                      <th>计划日期</th>
+                      <th>实际日期</th>
+                      <th>状态</th>
+                      <th>较计划滞后</th>
+                      <th>数据来源（示意）</th>
+                    </tr>
+                  </thead>
+                  <tbody id="milestoneTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-board">
+            <div class="filter-grid" id="filterGrid"></div>
+            <div class="filter-actions">
+              <button type="button" class="btn btn-primary">查询</button>
+              <button type="button" class="btn">重置</button>
+              <button type="button" class="btn">高级查询</button>
+              <button type="button" class="btn">导出</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>集团案号 / 申请单号</th>
+                  <th id="thLegalEntity">法人</th>
+                  <th>CMS 来源模块</th>
+                  <th>业务键（合同协议号/物料等）</th>
+                  <th>当前环节</th>
+                  <th>已运行 SKILL</th>
+                  <th>SKILL 输出 / AI 建议</th>
+                  <th>风险</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 关务合规智能体原独立整页：已折入各合规子模块列表顶「映射说明」+ 新增资质库/案例/监管台账；参见 complianceAgentStrip（JS） -->
+
+        <!-- ========== CMS 映射专页 ========== -->
+        <div id="panel-cms-map" class="panel-page panel-hidden">
+          <p class="today-scope">全平台汇总（与各列表工作台口径一致 · 示意） · <span id="mapTodayDate"></span></p>
+          <div class="today-demand-strip">
+            <div class="td-box td-demand">
+              <div class="td-label">今日需求量</div>
+              <div class="td-num"><span id="mapTodayDemand">—</span><span class="td-unit">票</span></div>
+              <div class="td-hint">全部子工作台合计</div>
+            </div>
+            <div class="td-box td-ai">
+              <div class="td-label">AI 智能处理量</div>
+              <div class="td-num"><span id="mapTodayAi">—</span><span class="td-unit">票</span></div>
+              <div class="td-hint">SKILL 已闭环合计</div>
+            </div>
+            <div class="td-box td-manual">
+              <div class="td-label">人工待办量</div>
+              <div class="td-num"><span id="mapTodayManual">—</span><span class="td-unit">票</span></div>
+              <div class="td-hint">待人工合计</div>
+            </div>
+          </div>
+          <div class="breadcrumb"><strong>对接映射</strong> / CMS-关务模块 × 子工作台 × 默认挂载 SKILL</div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>子工作台</th>
+                  <th>原系统模块（示例命名）</th>
+                  <th>拉取的任务类型</th>
+                  <th>默认 SKILL 链（可配置）</th>
+                  <th>SKILL 输出落位（列/工单）</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>中国进口管理 · 中国进口管理工作台</td>
+                  <td>CMS 进口到单；许可台账；报关委托；单一窗口回执</td>
+                  <td>待许可、待申报、查验、放行后在途</td>
+                  <td>需求解析 → 智能预审 → 归类辅助 → 申报跟踪 → 验核辅助</td>
+                  <td>与同一父级下的进口税金监控共享子公司、报关单号索引</td>
+                </tr>
+                <tr>
+                  <td>中国进口管理 · 进口税金监控工作台</td>
+                  <td>税单归集；完税价格差异；进口增值税进项核对</td>
+                  <td>税金差异工单、对账闭环、归档</td>
+                  <td>税赋辅助 → 智能预审</td>
+                  <td>挂载在「中国进口管理（子工作台）」内，与原进口报关台账联动</td>
+                </tr>
+                <tr>
+                  <td>关务需求智能体（工作台）</td>
+                  <td>企微聊天窗口接入；对话管理 / 意图识别 / 知识检索；知识库含法规·SOP·<strong>归类案例</strong>·FAQ·政策·历史工单；高置信自动答复、低置信转人工工单</td>
+                  <td>政策咨询、归类与监管指引、单证材料、历史案例等；关务经理待办与知识维护</td>
+                  <td>需求智能体 → 需求解析 → 关务问答 / 智能预审 / 时效督办</td>
+                  <td>自动答复或工单结论回写；会话与分诊轨迹可审计</td>
+                </tr>
+                <tr>
+                  <td>报关行资源和费用 · 报关费用</td>
+                  <td>报关行协议与资源池；账单 OCR；费用对比与申诉</td>
+                  <td>预估、对账差异、减免申请</td>
+                  <td>税赋辅助 → 智能预审</td>
+                  <td>费用异常标红；与报关单/合同协议号关联</td>
+                </tr>
+                <tr>
+                  <td>报关行资源和费用 · 供应商资质管理</td>
+                  <td>报关行准入与主数据；代理报关资质/证照；<strong>海关总署「中国海关企业进出口信用信息公示平台」</strong>公示等级同步。<strong>与合规 · 申报要素核查</strong>：本台管<strong>报关行主体资质与公示等级</strong>；申报要素核查管单票<strong>申报要素与归并一致性</strong></td>
+                  <td>准入评审、资质到期、黑名单拦截</td>
+                  <td>智能预审 → 验核辅助</td>
+                  <td>与绩效准入联动；定期同步公示批次可审计</td>
+                </tr>
+                <tr>
+                  <td>报关行资源和费用 · 供应商绩效管理</td>
+                  <td>KPI、合同 SLA、考评周期；列表关键列为<strong>子公司名称</strong>；实单回写与 SLA 对账环节</td>
+                  <td>季度评审、红黑榜、整改函、复盘会</td>
+                  <td>智能预审 → 时效督办 → 申报跟踪</td>
+                  <td>绩效包归档；与资质准入、份额费用工作台联动</td>
+                </tr>
+                <tr>
+                  <td>报关行资源和费用 · 业务占比份额（费用）</td>
+                  <td>按法人/口岸/报关行统计业务量<strong>占比与份额</strong>；归集<strong>协议价与实际费用</strong>；与报关费用工作台对账</td>
+                  <td>滚动份额预警、费用偏差、份额调整评审</td>
+                  <td>税赋辅助 → 智能预审</td>
+                  <td>份额看板与费用列联动 CMS 合同/账单索引</td>
+                </tr>
+                <tr>
+                  <td>合规 · 综合筛查（智能体总控）</td>
+                  <td>制裁/禁运/物项初筛；多子台任务路由；与关务合规智能体事前预审、事中扫描编排对应</td>
+                  <td>红/黄/绿档、升级法务/稽核</td>
+                  <td>智能预审 → 验核辅助 → 需求智能体</td>
+                  <td>列表顶栏展示本模块在智能体蓝图中的映射与落地路径（原型）</td>
+                </tr>
+                <tr>
+                  <td>合规 · 申报要素核查</td>
+                  <td>报关单申报要素与归并信息、规格型号、品牌等一致性核查；与归类结论、主数据交叉</td>
+                  <td>要素缺失、逻辑冲突、与 HS 描述不符</td>
+                  <td>智能预审 → 验核辅助 → 归类辅助</td>
+                  <td>与商品编码工作台已发布税号、制单辅助勾稽</td>
+                </tr>
+                <tr>
+                  <td>合规 · 原产地变化监控</td>
+                  <td>原产地档案；BOM/工序；FTA 规则</td>
+                  <td>国别/工序变更触发重算</td>
+                  <td>智能预审 → 归类辅助</td>
+                  <td>原产地变化差异报告</td>
+                </tr>
+                <tr>
+                  <td>合规 · 价格波动预警</td>
+                  <td>报关单价序列；合同价；转让定价区间</td>
+                  <td>波幅超阈、审价预备</td>
+                  <td>智能预审 → 税赋辅助</td>
+                  <td>价格异常说明草稿</td>
+                </tr>
+                <tr>
+                  <td>合规 · HS 合规检查</td>
+                  <td>申报 HS 与主数据；监管条件/许可证对照</td>
+                  <td>冲突清单、税则更新影响</td>
+                  <td>归类辅助 → 智能预审</td>
+                  <td>HS 一致性检查表</td>
+                </tr>
+                <tr>
+                  <td>合规 · 物项识别输出</td>
+                  <td>两用清单；ECCN；技术资料包</td>
+                  <td>物项判定书、法务签发</td>
+                  <td>验核辅助 → 关务问答</td>
+                  <td>物项识别摘要与附件索引</td>
+                </tr>
+                <tr>
+                  <td>合规 · 海关已下指令正式稽核查</td>
+                  <td>仅限海关已送达通知书或正式指令的专案；调阅清单与整改闭环</td>
+                  <td>资料提交、实地、结论</td>
+                  <td>验核辅助 → 时效督办</td>
+                  <td>稽查应对资料包版本化管理</td>
+                </tr>
+                <tr>
+                  <td>合规管理 · AEO 高级认证工作台</td>
+                  <td>认证标准条款库；内审与穿行测试；证书与年审里程碑（挂合规子工作台）</td>
+                  <td>差距项、整改证据、模拟审核</td>
+                  <td>验核辅助 → 时效督办 → 智能预审</td>
+                  <td>证据包版本；与稽核/内控输出联动</td>
+                </tr>
+                <tr>
+                  <td>合规 · 案例与风险趋势</td>
+                  <td>差错/稽查/物项判例库；根因与复发率；对应蓝图「事后改进」与模型反哺</td>
+                  <td>趋势告警、培训输入</td>
+                  <td>验核辅助 → 关务问答</td>
+                  <td>与物项识别、稽核查子台交叉引用</td>
+                </tr>
+                <tr>
+                  <td>合规 · 监管回执与指令台账</td>
+                  <td>TCS/回执、布控与验核通知、许可同步差异；对应蓝图「海关监管对接」底座</td>
+                  <td>回执延迟、布控到场、同步失败</td>
+                  <td>申报跟踪 → 通关反馈 → 时效督办</td>
+                  <td>集成范围分段评审；不宣称单一窗口直连自动化</td>
+                </tr>
+                <tr>
+                  <td>部件出口关务</td>
+                  <td>CMS 出口初始单；CMS 出口报关单；金文档接口；TCS 出口报关单</td>
+                  <td>新建初始单、待填柜、待推送 TCS、待所附单据、待发邮件</td>
+                  <td>需求解析 → 智能预审（SO/柜号）→ 制单辅助 → 申报跟踪 → 通关反馈</td>
+                  <td>「SKILL 输出」列；异常生成合规/督办待办</td>
+                </tr>
+                <tr>
+                  <td>整机出口关务</td>
+                  <td>CMS 整机出口单证；PLM/BOM 视图（如有）</td>
+                  <td>型号确认、证书齐套、拆单</td>
+                  <td>归类辅助 → 智能预审 → 制单辅助 → 申报跟踪</td>
+                  <td>AI 申报要素建议；预审风险标</td>
+                </tr>
+                <tr>
+                  <td>海外关务管理 · 美国子公司</td>
+                  <td>美国实体 CMS/代理回传；FFI 与关税列；集团案号关联</td>
+                  <td>进口清关、HTS 确认、查验与罚金跟进</td>
+                  <td>关务问答（美线）→ 归类辅助（HTS）→ 验核辅助 → 税赋辅助</td>
+                  <td>HTS 候选；CBP/合作伙伴资料包索引</td>
+                </tr>
+                <tr>
+                  <td>海外关务管理 · 印度子公司</td>
+                  <td>印度 GST/BCD 台账；本地报关行回传；集团案号关联</td>
+                  <td>到港清关、IGST 抵扣衔接、查验</td>
+                  <td>关务问答（印线）→ 归类辅助 → 验核辅助 → 税赋辅助</td>
+                  <td>HSS 编码候选；验核与化验资料包</td>
+                </tr>
+                <tr>
+                  <td>海外关务管理 · 荷兰子公司</td>
+                  <td>欧盟进口申报；IOSS/VAT 相关台账（若适用）；集团案号关联</td>
+                  <td>欧线清关、关税与增值税申报、中转</td>
+                  <td>关务问答（欧线）→ 归类辅助（TARIC）→ 税赋辅助</td>
+                  <td>合并税号候选；欧盟子目与规则提示</td>
+                </tr>
+                <tr>
+                  <td>海外关务管理 · 海外加工厂</td>
+                  <td>当地加工账册/PB 或等效；进出口复出口；与国内法人 Interco</td>
+                  <td>料件进口、成品出口、余料/损耗核销</td>
+                  <td>需求解析 → 智能预审 → 申报跟踪 → 通关反馈</td>
+                  <td>加工贸易式平衡预警；集团案号串联国内出运</td>
+                </tr>
+                <tr>
+                  <td>香港进出口清关 · 香港进口</td>
+                  <td>CMS 香港进口单；舱单/税款；按<strong>公司法人名称</strong>（香港实体）聚合台账</td>
+                  <td>到港申报、查验、放行、与内地单证勾稽</td>
+                  <td>关务问答（港线）→ 归类辅助 → 智能预审 → 申报跟踪</td>
+                  <td>法人维度并票视图；集团案号 + 提单索引</td>
+                </tr>
+                <tr>
+                  <td>香港进出口清关 · 香港出口</td>
+                  <td>CMS 香港出口单；离港舱单；经港转运与内地报关单关联</td>
+                  <td>装船、离港、结关、转运 SLA</td>
+                  <td>制单辅助 → 智能预审 → 申报跟踪 → 通关反馈</td>
+                  <td>按<strong>公司法人名称</strong>展示；离港时间回写集团案号</td>
+                </tr>
+                <tr>
+                  <td>孵化公司出口</td>
+                  <td>CMS 孵化/新设主体出口场景；与一般出口流程对齐，权限与法人隔离可配置</td>
+                  <td>资质齐套、首单归类、合同与发票一致性</td>
+                  <td>需求解析 → 归类辅助 → 智能预审 → 制单辅助</td>
+                  <td>与<strong>商品归类智能体</strong>、<strong>关务需求智能体</strong>咨询衔接</td>
+                </tr>
+                <tr>
+                  <td>中国退运维修进出口</td>
+                  <td>CMS 修理物品、退运进出口；保证金台账；与原出口单对碰</td>
+                  <td>退回进口报关、复出口报关、保函解除、核销结案</td>
+                  <td>需求解析 → 智能预审 → 归类辅助 → 申报跟踪 → 时效督办</td>
+                  <td>原出口-退回-复出口三联勾稽；超期复出境预警</td>
+                </tr>
+                <tr>
+                  <td>内销补税</td>
+                  <td>加工贸易内销申请；保税核注；补税单</td>
+                  <td>待税号确认、待补税核对</td>
+                  <td>税赋辅助 → 智能归类 → 智能预审</td>
+                  <td>补税测算草稿；归类候选</td>
+                </tr>
+                <tr>
+                  <td>加贸调拨审批</td>
+                  <td>深加工结转 / 余料结转 / 厂际调拨；<strong>对内审批流</strong>与报关单配对闭环</td>
+                  <td>在途核销、审批驳回、数量平衡</td>
+                  <td>需求解析 → 智能预审 → 申报跟踪</td>
+                  <td>审批意见与报关单号勾稽归档</td>
+                </tr>
+                <tr>
+                  <td>加贸账务平衡</td>
+                  <td>手册报核；平衡表；损耗差异</td>
+                  <td>报核前差异工单</td>
+                  <td>智能预审 → 归类辅助（归并）</td>
+                  <td>差异解释草稿；归并冲突提示</td>
+                </tr>
+                <tr>
+                  <td>商品编码工作台 · 商品归类智能体 / HSCS</td>
+                  <td>对标 HSCS：待办、归类申请、海外归类、申请单/物料查询、海关规则基础信息、填报辅助、归类结果查询、统计与数据管理；输入含产品资料/技术规格书/自然语言</td>
+                  <td>新物料·新产品首次报关归类；工程师补料 → AI 解析 → 历史同类查询 → HS 推荐 → 税率监管条件 → <strong>关务经理确认</strong> → 回写 ERP/CMS → 归类报告与监管条件文件</td>
+                  <td>归类辅助 → 智能预审 → 关务问答</td>
+                  <td>列表关键列：<em>AI/智能税号推荐</em>、规格型号、归类类型（系统推荐等）、状态、UUID；低风险可自动发布、高风险人审（iGCM 逻辑）</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <footer class="note">
+            高风险物料：SKILL 仅输出候选与风险标，<strong>强制人工复核</strong>后方可同步回 CMS（与中兴 iGCM「低风险自动发布、高风险人审」逻辑一致，落地以贵司制度为准）。
+          </footer>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  var titles = {
+    overview: "智能体总览与 KPI",
+    "import-hub": "中国进口管理（子工作台）· 导航",
+    import: "中国进口管理工作台",
+    "export-hub": "中国出口管理（子工作台）· 导航",
+    "overseas-hub": "海外关务管理（子工作台）· 导航",
+    "export-parts": "部件出口关务工作台",
+    "export-machine": "整机出口关务工作台",
+    "export-us": "美国子公司关务工作台",
+    "export-in": "印度子公司关务工作台",
+    "export-nl": "荷兰子公司关务工作台",
+    "export-factory": "海外加工厂关务工作台",
+    "hk-import": "香港进口清关工作台",
+    "hk-export": "香港出口清关工作台",
+    "export-other": "孵化公司出口工作台",
+    "pt-hub": "中国加工贸易（子工作台）· 导航",
+    "pt-domestic": "内销补税工作台",
+    "pt-transfer": "加贸调拨审批工作台",
+    "pt-balance": "加贸账务平衡工作台",
+    "return-repair": "中国退运维修进出口工作台",
+    commodity: "商品编码工作台 · 归类智能体 / HSCS",
+    "compliance-hub": "合规管理（子工作台）· 导航",
+    compliance: "合规综合筛查",
+    "cmp-qualification": "申报要素核查",
+    "cmp-origin": "原产地变化监控",
+    "cmp-price": "价格波动预警",
+    "cmp-hs": "HS 合规检查",
+    "cmp-item": "物项识别输出",
+    "cmp-audit": "海关已下指令正式稽核查",
+    "cmp-cases": "合规案例与风险趋势",
+    "cmp-regulatory": "监管回执与指令台账",
+    "customs-demand": "关务需求智能体（工作台）",
+    "customs-fee": "报关费用工作台",
+    "broker-qualification": "供应商资质管理",
+    "broker-performance": "供应商绩效管理",
+    "broker-share": "供应商业务占比份额管理（费用）",
+    aeo: "AEO 高级认证工作台",
+    tax: "进口税金监控工作台",
+    "cms-map": "CMS-关务模块映射与 SKILL"
+  };
+
+  var listConfig = {
+    import: {
+      bc: "中国进口管理 / 在途与待办",
+      today: { demand: 28, ai: 18, manual: 10 },
+      cmsMods: "CMS 进口采购/到单；许可台账；报关委托",
+      skills: ["需求解析", "智能预审", "归类辅助", "申报跟踪", "验核辅助"],
+      filters: [
+        { label: "到港日期", type: "date" },
+        { label: "物料编码", type: "text" },
+        { label: "合同号", type: "text" },
+        { label: "状态", type: "select", options: ["全部", "待许可", "待申报", "已放行"] },
+        { label: "法人", type: "text" },
+        { label: "监管条件", type: "text" }
+      ],
+      rows: [
+        ["G-IMP-2026-001", "子公司·华南", "CMS 进口到单", "PO-88xx / 电容料", "许可核对", "智能预审", "预审：<em>3C 证书有效期覆盖装运日</em>", "低", "待申报", "打开 CMS"],
+        ["G-IMP-2026-014", "子公司·华东", "许可台账", "两用物项批件 BR-xx", "要素确认", "需求解析", "抽取进口用途与最终用户字段完整", "高", "人审中", "打开 CMS"]
+      ]
+    },
+    "export-parts": {
+      bc: "中国出口管理 / 部件出口关务",
+      today: { demand: 45, ai: 28, manual: 17 },
+      cmsMods: "CMS 出口初始单（视琨·新建）；出口报关单；TCS 出口报关单；金文档",
+      skills: ["需求解析", "智能预审", "制单辅助", "申报跟踪", "时效督办", "通关反馈"],
+      filters: [
+        { label: "申请日期", type: "date" },
+        { label: "合同协议号", type: "text" },
+        { label: "销管", type: "text" },
+        { label: "状态", type: "select", options: ["全部", "待填柜", "待推送 TCS", "待上传所附单据", "待发邮件"] },
+        { label: "法人", type: "text" },
+        { label: "SO", type: "text" }
+      ],
+      rows: [
+        ["G-EXP-2026-108", "广州视琨", "CMS 出口初始单 → TCS", "协议号 CVTE-SK-xx", "申报明细待填柜", "智能预审", "预审：<em>SO 与金文档一致</em>；柜型建议 40HQ", "低", "处理中", "深链 TCS"],
+        ["G-EXP-2026-109", "子公司·华北", "CMS 出口报关单", "协议号 BJ-xx", "待推送 TCS", "制单辅助", "已从箱单 OCR 抽取件数/毛重，待人工确认", "中", "待推送", "深链 CMS"]
+      ]
+    },
+    "export-machine": {
+      bc: "中国出口管理 / 整机出口关务",
+      today: { demand: 22, ai: 14, manual: 8 },
+      cmsMods: "CMS 整机出运；证书（3C/无线）索引",
+      skills: ["归类辅助", "智能预审", "制单辅助", "申报跟踪"],
+      filters: [
+        { label: "申请日期", type: "date" },
+        { label: "机型/SKU", type: "text" },
+        { label: "合同协议号", type: "text" },
+        { label: "状态", type: "select", options: ["全部", "证书齐套", "拆单中", "待申报"] }
+      ],
+      rows: [
+        ["G-EXP-ZJ-02", "海外加工厂", "CMS 整机出运", "PROJECT-LED-xx", "证书核对", "归类辅助", "AI：<em>8471.60 候选</em>（置信度 0.91）工程师待签", "中", "待发布", "打开 CMS"]
+      ]
+    },
+    "export-us": {
+      bc: "海外关务管理 / 美国子公司关务",
+      today: { demand: 15, ai: 9, manual: 6 },
+      overseasLane: {
+        subTitle: "美国子公司进口段：与国内段、国际干线、目的港清关还柜联动监管",
+        clearanceTimeliness: { rate: 92.4, target: 95, period: "滚动30天", numerator: 121, denominator: 131 },
+        rule: "及时口径（示意）：ATA 起算 T+2 工作日内海外放行；「结关」以目的港报关单/舱单结关回执为准",
+        sampleRef: "G-US-2026-014 · 40HQ MSKU7711665 · SO-SEA-8821",
+        queryNo: "G-US-2026-014",
+        milestones: [
+          { step: 1, name: "工厂齐套", plan: "2026-03-09", actual: "2026-03-09", status: "完成", lag: "—", source: "国内工厂/MES" },
+          { step: 2, name: "工厂装柜", plan: "2026-03-11", actual: "2026-03-11", status: "完成", lag: "—", source: "堆场 VGM 回执" },
+          { step: 3, name: "中国报关（出口）", plan: "2026-03-12", actual: "2026-03-12", status: "完成", lag: "—", source: "CMS/TCS 放行纪要" },
+          { step: 4, name: "开船时间（ATD）", plan: "2026-03-14", actual: "2026-03-14", status: "完成", lag: "—", source: "船公司提单" },
+          { step: 5, name: "到港时间（ATA）", plan: "2026-03-29", actual: "2026-03-30", status: "完成", lag: "+1 天", source: "目的港代理" },
+          { step: 6, name: "海外清关放行", plan: "2026-04-01", actual: "2026-04-02", status: "延误", lag: "+1 天", source: "CBP/Entry Summary" },
+          { step: 7, name: "海外还柜", plan: "2026-04-04", actual: "—", status: "待办", lag: "—", source: "码头 empty return" },
+          { step: 8, name: "结关", plan: "2026-04-06", actual: "—", status: "待办", lag: "—", source: "舱单+报关单结关节点" }
+        ]
+      },
+      cmsMods: "美国子公司 CMS；报关行/承运商回执；ACE/ABI 状态（示意）；集团案号关联",
+      skills: ["关务问答（美线）", "归类辅助（HTS）", "验核辅助", "税赋辅助", "申报跟踪"],
+      filters: [
+        { label: "集团案号", type: "text" },
+        { label: "Shipment / MBOL", type: "text" },
+        { label: "状态", type: "select", options: ["全部", "清关中", "查验", "已放行", "税款待核"] }
+      ],
+      rows: [
+        ["G-US-2026-014", "美国子公司", "CBP 相关回执归档", "关联 CVTE-xx / HTS 待确认", "进口申报后验核", "归类辅助", "AI：<em>HTS 8542.31 候选</em> 另存工程师附件", "中", "进行中", "打开美国台账"]
+      ]
+    },
+    "export-in": {
+      bc: "海外关务管理 / 印度子公司关务",
+      today: { demand: 12, ai: 5, manual: 7 },
+      overseasLane: {
+        subTitle: "印度线：敏感品名/化验情形纳入全周期黄色预警",
+        clearanceTimeliness: { rate: 88.7, target: 90, period: "滚动30天", numerator: 79, denominator: 89 },
+        rule: "及时口径（示意）：ATA 起 T+72h 内 BoE 放行；结关以印度口岸报关单结关与舱单核销为准",
+        sampleRef: "G-IN-2026-007 · 40HC TTNU9988xxx · BOM 化工辅料",
+        queryNo: "G-IN-2026-007",
+        milestones: [
+          { step: 1, name: "工厂齐套", plan: "2026-03-05", actual: "2026-03-05", status: "完成", lag: "—", source: "国内工厂/MES" },
+          { step: 2, name: "工厂装柜", plan: "2026-03-07", actual: "2026-03-08", status: "完成", lag: "+1 天", source: "车队 APP" },
+          { step: 3, name: "中国报关（出口）", plan: "2026-03-09", actual: "2026-03-09", status: "完成", lag: "—", source: "CMS 出口报关单" },
+          { step: 4, name: "开船时间（ATD）", plan: "2026-03-11", actual: "2026-03-11", status: "完成", lag: "—", source: "船公司" },
+          { step: 5, name: "到港时间（ATA）", plan: "2026-03-22", actual: "2026-03-23", status: "完成", lag: "+1 天", source: "CHA 到港通知" },
+          { step: 6, name: "海外清关放行", plan: "2026-03-26", actual: "2026-03-28", status: "延误", lag: "+2 天", source: "IGST/BoE 回执" },
+          { step: 7, name: "海外还柜", plan: "2026-03-30", actual: "2026-03-30", status: "完成", lag: "—", source: "CY empty return" },
+          { step: 8, name: "结关", plan: "2026-03-31", actual: "2026-04-01", status: "完成", lag: "+1 天", source: "口岸结关 + 舱单闭环" }
+        ]
+      },
+      cmsMods: "印度实体 GST 台账；本地 CHA 回传；BEC/BCD 要素；集团案号关联",
+      skills: ["关务问答（印线）", "归类辅助", "验核辅助", "税赋辅助", "申报跟踪"],
+      filters: [
+        { label: "集团案号", type: "text" },
+        { label: "BOE / 报关单参考号", type: "text" },
+        { label: "状态", type: "select", options: ["全部", "到港待申报", "查验", "已放行", "GST 对账中"] }
+      ],
+      rows: [
+        ["G-IN-2026-007", "印度子公司", "印度进口报关回传", "IGST 与合同价核对", "实验室化验待果", "验核辅助", "资料包：<em>同款历史 4 票</em>已索引", "高", "人审", "打开印度台账"]
+      ]
+    },
+    "export-nl": {
+      bc: "海外关务管理 / 荷兰子公司关务",
+      today: { demand: 10, ai: 6, manual: 4 },
+      overseasLane: {
+        subTitle: "欧线：MRN、进口增值税与中转港衔接全览",
+        clearanceTimeliness: { rate: 94.1, target: 95, period: "滚动30天", numerator: 96, denominator: 102 },
+        rule: "及时口径（示意）：ATA 起 2 个工作日内海关放行；结关以欧盟进口申报放行后报关单结关状态为准",
+        sampleRef: "G-NL-2026-003 · 45R1 TRHU4455xxx · 鹿特丹进境",
+        queryNo: "G-NL-2026-003",
+        milestones: [
+          { step: 1, name: "工厂齐套", plan: "2026-03-13", actual: "2026-03-13", status: "完成", lag: "—", source: "国内工厂/MES" },
+          { step: 2, name: "工厂装柜", plan: "2026-03-15", actual: "2026-03-15", status: "完成", lag: "—", source: "堆场" },
+          { step: 3, name: "中国报关（出口）", plan: "2026-03-16", actual: "2026-03-16", status: "完成", lag: "—", source: "CMS/TCS" },
+          { step: 4, name: "开船时间（ATD）", plan: "2026-03-18", actual: "2026-03-18", status: "完成", lag: "—", source: "海运提单" },
+          { step: 5, name: "到港时间（ATA）", plan: "2026-04-02", actual: "2026-04-02", status: "完成", lag: "—", source: "代理 Portcall" },
+          { step: 6, name: "海外清关放行", plan: "2026-04-04", actual: "2026-04-04", status: "完成", lag: "—", source: "NL 报关行 + 海关" },
+          { step: 7, name: "海外还柜", plan: "2026-04-06", actual: "2026-04-06", status: "完成", lag: "—", source: "内陆堆场 QR" },
+          { step: 8, name: "结关", plan: "2026-04-07", actual: "2026-04-07", status: "完成", lag: "—", source: "ICS2/MRN 结关回执" }
+        ]
+      },
+      cmsMods: "欧盟进口申报数据；NL 税务/关务代理回传；集团案号关联；IOSS 口径（若适用）",
+      skills: ["关务问答（欧线）", "归类辅助（TARIC）", "税赋辅助", "申报跟踪", "验核辅助"],
+      filters: [
+        { label: "集团案号", type: "text" },
+        { label: "MRN / Entry", type: "text" },
+        { label: "状态", type: "select", options: ["全部", "中转", "清关中", "已完税", "查验"] }
+      ],
+      rows: [
+        ["G-NL-2026-003", "荷兰子公司", "欧盟清关回执", "关联欧洲 PO-xx", "增值税申报衔接", "税赋辅助", "草稿：<em>进口增值税与转让定价区间</em>", "低", "进行中", "打开荷兰台账"]
+      ]
+    },
+    "export-factory": {
+      bc: "海外关务管理 / 海外加工厂关务",
+      today: { demand: 18, ai: 11, manual: 7 },
+      overseasLane: {
+        subTitle: "海外加工厂典型链路：国内段齐套装柜报出 + 海运 + 当地进口清关与还柜（与 SKD/散件出运衔接）",
+        clearanceTimeliness: { rate: 90.6, target: 92, period: "滚动30天", numerator: 87, denominator: 96 },
+        rule: "及时口径（示意）：到港 T+3 自然日内放行；结关含当地进口报关单结关 + 空柜返还闭环确认",
+        sampleRef: "G-MFG-2026-011 · 40HQ MSKU6600990 · 国内 SKD→海外厂",
+        queryNo: "G-MFG-2026-011",
+        milestones: [
+          { step: 1, name: "工厂齐套", plan: "2026-03-08", actual: "2026-03-08", status: "完成", lag: "—", source: "国内工厂/WMS + Interco 订单" },
+          { step: 2, name: "工厂装柜", plan: "2026-03-10", actual: "2026-03-10", status: "完成", lag: "—", source: "装柜照片/封条号回传" },
+          { step: 3, name: "中国报关（出口）", plan: "2026-03-11", actual: "2026-03-11", status: "完成", lag: "—", source: "CMS 出口报关单 / TCS" },
+          { step: 4, name: "开船时间（ATD）", plan: "2026-03-13", actual: "2026-03-14", status: "完成", lag: "+1 天", source: "船公司 SO/ATD" },
+          { step: 5, name: "到港时间（ATA）", plan: "2026-03-26", actual: "2026-03-27", status: "完成", lag: "+1 天", source: "海外代理 ATA 登记" },
+          { step: 6, name: "海外清关放行", plan: "2026-03-30", actual: "2026-03-31", status: "完成", lag: "+1 天", source: "当地海关放行回执" },
+          { step: 7, name: "海外还柜", plan: "2026-04-02", actual: "2026-04-03", status: "完成", lag: "+1 天", source: "车队还空/堆场小票" },
+          { step: 8, name: "结关", plan: "2026-04-04", actual: "—", status: "进行中", lag: "—", source: "加工账册核注+报关单结关" }
+        ]
+      },
+      cmsMods: "海外厂当地加工账册或等效；料件进口+成品出口；与国内母公司 Interco 合同",
+      skills: ["需求解析", "智能预审", "归类辅助", "申报跟踪", "通关反馈"],
+      filters: [
+        { label: "集团案号", type: "text" },
+        { label: "厂别", type: "text" },
+        { label: "状态", type: "select", options: ["全部", "料件进口", "加工中", "成品出口", "核销差异"] }
+      ],
+      rows: [
+        ["G-MFG-2026-011", "海外加工厂", "当地加工进出口台账", "国内出运 SKD-xx 衔接", "成品复出口", "智能预审", "提示：<em>耗用单与国内报关单项</em>量纲需对齐", "中", "待办", "打开厂区 CMS"]
+      ]
+    },
+    "hk-import": {
+      bc: "香港进出口清关 / 香港进口",
+      today: { demand: 8, ai: 4, manual: 4 },
+      cmsMods: "香港进口报关与舱单；税款/离岸价衔接；与集团案号、内地段报关单勾稽。列表主维度为<strong>公司法人名称</strong>（香港注册实体全称），支持按法人汇总/筛选在途与历史票。",
+      skills: ["关务问答（港线）", "归类辅助", "智能预审", "申报跟踪", "验核辅助"],
+      filters: [
+        { label: "公司法人名称", type: "text" },
+        { label: "集团案号", type: "text" },
+        { label: "提单号 / HBL", type: "text" },
+        { label: "到港日期", type: "date" },
+        { label: "状态", type: "select", options: ["全部", "到港待申报", "清关中", "已放行", "查验", "税款待核"] }
+      ],
+      rows: [
+        ["HK-IMP-2026-021", "××科技（香港）有限公司", "CMS 香港进口单", "BL-SEA9921 · 料件 SKD", "到港申报", "智能预审", "预审：<em>产地证与发票</em>抬头与法人一致", "低", "处理中", "打开 CMS"],
+        ["HK-IMP-2026-022", "××贸易（香港）有限公司", "香港进口台账", "INTERCO-HK-PO-778", "保税入仓对账", "申报跟踪", "提示：同法人下<strong>并票视图</strong> 2 单待合并对账", "中", "待办", "打开 CMS"],
+        ["HK-IMP-2026-023", "××电子（香港）有限公司", "进口报关回执", "柜号 MSKU7711xxx", "查验预约", "验核辅助", "输出：资料包索引 4 份", "高", "查验中", "打开台账"]
+      ]
+    },
+    "hk-export": {
+      bc: "香港进出口清关 / 香港出口",
+      today: { demand: 7, ai: 4, manual: 3 },
+      cmsMods: "香港出口报关、离港舱单、经港转运与内地报关单衔接。列表主维度为<strong>公司法人名称</strong>（香港注册实体全称），支持按法人查看离港、结关与转运状态。",
+      skills: ["关务问答（港线）", "制单辅助", "智能预审", "申报跟踪", "通关反馈"],
+      filters: [
+        { label: "公司法人名称", type: "text" },
+        { label: "集团案号", type: "text" },
+        { label: "SO / 合同协议号", type: "text" },
+        { label: "离港日期", type: "date" },
+        { label: "状态", type: "select", options: ["全部", "待装船", "已离港", "转运衔接", "已结关"] }
+      ],
+      rows: [
+        ["HK-EXP-2026-015", "××科技（香港）有限公司", "CMS 香港出口单", "SO-HK-5512 · 40HQ", "离港核销", "制单辅助", "已从装箱单 OCR 抽取毛净重；法人维度归档", "低", "已离港", "打开 CMS"],
+        ["HK-EXP-2026-016", "××物流（香港）有限公司", "经港转运出口", "内地报关单关联 4710xxxx", "舱单匹配", "智能预审", "预警：同<strong>公司法人名称</strong>下两票建议合并舱单", "中", "待办", "打开 CMS"],
+        ["HK-EXP-2026-017", "××贸易（香港）有限公司", "香港离境确认", "空运 MAWB 176-xx", "结关回执", "申报跟踪", "输出：<em>离港时间</em>已回写集团案号", "低", "已结关", "打开台账"]
+      ]
+    },
+    "export-other": {
+      bc: "中国出口管理 / 孵化公司出口",
+      today: { demand: 8, ai: 5, manual: 3 },
+      cmsMods: "CMS 孵化/新设主体出口台账；与一般出口流程对齐；首单归类与合同发票索引",
+      skills: ["需求解析", "归类辅助", "智能预审", "制单辅助"],
+      filters: [
+        { label: "孵化主体", type: "text" },
+        { label: "业务类型", type: "select", options: ["全部", "首单出货", "样机/暂时进出", "其他"] },
+        { label: "合同协议号", type: "text" }
+      ],
+      rows: [
+        ["G-EXP-INC-01", "孵化主体·华南", "CMS 孵化出口", "INC-PROTO-xx / 首单", "资质与归类齐套", "归类辅助", "AI：<em>8542.xx 候选</em> 已挂商品编码工作台待经理发布", "中", "待办", "打开 CMS"]
+      ]
+    },
+    "pt-domestic": {
+      bc: "中国加工贸易 / 内销补税",
+      today: { demand: 14, ai: 8, manual: 6 },
+      cmsMods: "加工贸易内销申请；补税单；保税核注",
+      skills: ["税赋辅助", "归类辅助", "智能预审"],
+      filters: [
+        { label: "手册号", type: "text" },
+        { label: "内销申请单号", type: "text" },
+        { label: "状态", type: "select", options: ["全部", "待税号", "待缴税", "已核销"] }
+      ],
+      rows: [
+        ["NX-2026-077", "子公司·华东", "内销申请 → 补税单", "手册 Z4xx / 料号 M-9981", "税号核定", "税赋辅助", "测算：<em>关税+缓税利息</em>草稿（税率版本 2026Q1）", "中", "待核对", "打开 CMS"]
+      ]
+    },
+    "pt-transfer": {
+      bc: "中国加工贸易 / 加贸调拨审批",
+      today: { demand: 11, ai: 7, manual: 4 },
+      cmsMods: "深加工结转/余料结转/厂际调拨；对内审批流与报关单配对；审批通过方可生成报关委托",
+      skills: ["需求解析", "智能预审", "申报跟踪", "时效督办"],
+      filters: [
+        { label: "调拨单号", type: "text" },
+        { label: "转出/转入手册", type: "text" },
+        { label: "审批状态", type: "select", options: ["全部", "待部门审", "待关务审", "已通过", "已驳回"] },
+        { label: "状态", type: "select", options: ["全部", "在途", "已核扣", "差异"] }
+      ],
+      rows: [
+        ["DB-2026-1201", "两子公司", "调拨审批+结转配对", "手册 A→B", "关务审批通过", "智能预审", "预警：<em>申报数量差额 0.8%</em> 未超阈但需备注", "低", "待备注", "打开 CMS"]
+      ]
+    },
+    "pt-balance": {
+      bc: "中国加工贸易 / 加贸账务平衡",
+      today: { demand: 20, ai: 9, manual: 11 },
+      cmsMods: "手册报核；平衡表；损耗表",
+      skills: ["智能预审", "归类辅助"],
+      filters: [
+        { label: "报核周期", type: "text" },
+        { label: "手册号", type: "text" },
+        { label: "状态", type: "select", options: ["全部", "差异分析", "待说明", "已报核"] }
+      ],
+      rows: [
+        ["BH-2026-H4", "子公司·华南", "手册报核销", "Z5xx 周期 2026H1", "余料倒轧", "智能预审", "差异草稿：<em>单耗滚动与 BOM ECN 3 条</em>待关务确认", "高", "人审", "打开 CMS"],
+        ["BH-2026-H5", "子公司·西南", "平衡表", "Z6xx", "归并冲突", "归类辅助", "提示：<em>归并号变更未同步 ERP 2 条料号</em>", "中", "待办", "打开 CMS"]
+      ]
+    },
+    "return-repair": {
+      bc: "中国退运维修进出口 / 退回进口与复出口",
+      today: { demand: 9, ai: 4, manual: 5 },
+      cmsMods: "CMS 修理物品/退运货物；退回进口报关单；复出口报关单；保证金·保函·核销联单",
+      skills: ["需求解析", "智能预审", "归类辅助", "申报跟踪", "时效督办", "通关反馈"],
+      filters: [
+        { label: "维修协议号", type: "text" },
+        { label: "原出口报关单号", type: "text" },
+        { label: "业务类型", type: "select", options: ["全部", "退回进口报关", "复出口报关", "保证金核销"] },
+        { label: "状态", type: "select", options: ["全部", "待申报", "已放行", "待复出境", "已办结"] }
+      ],
+      rows: [
+        ["RT-IMP-2026-088", "子公司·华南", "退回进口报关单", "原出口 E0100xx · 合同 RMA-5521", "征税要素核对", "智能预审", "预审：<em>与原出口单价偏离 5% 内</em>需备注", "中", "待申报", "打开 CMS"],
+        ["RT-EXP-2026-088", "子公司·华南", "复出口报关单", "关联 RT-IMP-2026-088", "复运出境", "制单辅助", "已带出原进口扣留件号/序列号", "低", "待发运", "打开 CMS"],
+        ["RT-GRP-2026-15", "研发中心", "修理物品手册", "手册 G7xx · 料号集", "账册核注", "申报跟踪", "提示：<em>复出口截止日</em>前完成装机", "高", "督办", "打开 CMS"]
+      ]
+    },
+    commodity: {
+      bc: "商品编码 / 归类智能体 · 类 HSCS（iGCM）",
+      today: { demand: 65, ai: 42, manual: 23 },
+      cmsMods: "PDM/ERP 物料主数据；HSCS 侧：待办、归类申请、海外归类、申请单/物料查询、海关规则基础、填报辅助、归类结果、报表、数据管理；商品资料+技术规格书+自然语言 → 工程师补料 → 解析 → 历史同类 → HS 推荐 → 税率/监管条件 → 关务经理确认 → 回写 → 归类报告/监管文件",
+      skills: ["归类辅助", "关务问答", "需求解析", "智能预审"],
+      filters: [
+        { label: "申请单号", type: "text" },
+        { label: "申请日期", type: "date" },
+        { label: "物料编码", type: "text" },
+        { label: "物料名称", type: "text" },
+        { label: "UUID", type: "text" },
+        { label: "规格型号", type: "text" },
+        { label: "AI 智能税号推荐", type: "text" },
+        { label: "归类类型", type: "select", options: ["全部", "系统推荐", "人工申请", "海外税号"] },
+        { label: "状态", type: "select", options: ["全部", "待审", "待经理确认", "已发布", "已驳回"] },
+        { label: "风险档", type: "select", options: ["全部", "低（可自动发布）", "高（强制人审）"] }
+      ],
+      rows: [
+        ["CLS-2026-8891", "集团物料库", "归类申请单·物料查询", "M-7721 / 单板 · UUID u1", "经理确认前", "归类辅助", "AI 推荐：<em>8542.31</em>；已拉税率/监管；历史 12 票；待<strong>关务经理</strong>签章", "低", "待发布", "打开 HSCS"],
+        ["CLS-2026-8892", "荷兰子公司", "海外归类申请", "M-7722 · HTS/TARIC", "国别税号", "归类辅助", "AI：<em>HS + 欧盟子目</em> 双候选；归类类型=系统推荐", "中", "待审", "打开 HSCS"],
+        ["CLS-2026-8893", "新品导入", "首次报关归类需求", "结构件 / 缺规格书", "工程师补料", "关务问答", "智能问答已生成<strong>补料清单</strong> 3 项", "中", "补料中", "打开会话"]
+      ]
+    },
+    compliance: {
+      bc: "合规管理 / 综合筛查",
+      today: { demand: 9, ai: 4, manual: 5 },
+      cmsMods: "制裁/禁运名单；出口管制 ENC；贸易伙伴主数据；与下级原产地/价格/HS/物项/稽查视图联动",
+      skills: ["智能预审", "关务问答", "验核辅助", "需求智能体"],
+      filters: [
+        { label: "筛查批次", type: "text" },
+        { label: "风险等级", type: "select", options: ["全部", "红", "黄", "绿"] },
+        { label: "业务条线", type: "select", options: ["全部", "出口", "进口", "供应商"] }
+      ],
+      rows: [
+        ["CMP-2026-001", "集团 CoE", "制裁名单比对", "客户编码 C-998", "最终用户升级", "智能预审", "命中：<em>需升级法务复核</em>（模拟）", "高", "升级中", "打开台账"],
+        ["CMP-2026-022", "子公司", "物项初审转办", "料号 M-8821", "两用清单核对", "验核辅助", "已推送<strong>物项识别</strong>子台输出待签", "中", "处理中", "打开台账"]
+      ]
+    },
+    "cmp-origin": {
+      bc: "合规管理 / 原产地变化监控",
+      today: { demand: 6, ai: 3, manual: 3 },
+      cmsMods: "原产地证书档案；BOM/工序变更；FTA 规则引擎回写；与报关单享惠比对",
+      skills: ["智能预审", "归类辅助", "关务问答"],
+      filters: [
+        { label: "FTA/协定", type: "text" },
+        { label: "物料/成品", type: "text" },
+        { label: "变更类型", type: "select", options: ["全部", "工序转移", "供应商国别", "成分比例", "HS 联动"] }
+      ],
+      rows: [
+        ["ORG-2026-051", "采购协同", "原产地差异比对", "料号 F-221 vs 报关单", "实质性改变复核", "智能预审", "输出：<em>巴基斯坦→越南</em> 供应商切换触发 RVC 重算", "中", "待签", "导出报告"],
+        ["ORG-2026-052", "关务 CoE", "证书链更新", "ACFTA 批量", "规则版本升级", "关务问答", "输出：<em>2026 版和式文本</em>差异 3 条已索引", "低", "已发布", "打开档案"]
+      ]
+    },
+    "cmp-price": {
+      bc: "合规管理 / 价格波动预警",
+      today: { demand: 7, ai: 4, manual: 3 },
+      cmsMods: "报关单价历史；合同/发票价；关联交易区间；转让定价文档索引",
+      skills: ["智能预审", "税赋辅助"],
+      filters: [
+        { label: "法人", type: "text" },
+        { label: "物料/报关单", type: "text" },
+        { label: "波幅阈值", type: "select", options: ["全部", ">10%", ">15%", "自定义"] }
+      ],
+      rows: [
+        ["PRC-2026-018", "转让定价", "月度价格监控", "报关单 471xx 系列", "同期资料对齐", "智能预审", "输出：<em>连涨两月 +18%</em> 超出预警带", "高", "待说明", "打开分析包"],
+        ["PRC-2026-019", "子公司", "同类料号横向", "M-6610", "审价应对预备", "智能预审", "输出：同类低价票参考 6 条", "中", "已归档", "打开 CMS"]
+      ]
+    },
+    "cmp-hs": {
+      bc: "合规管理 / HS 合规检查",
+      today: { demand: 8, ai: 5, manual: 3 },
+      cmsMods: "申报 HS 与物料主数据；许可证对照表；监管条件变更雷达",
+      skills: ["归类辅助", "智能预审", "关务问答"],
+      filters: [
+        { label: "监管条件", type: "text" },
+        { label: "许可证", type: "text" },
+        { label: "检查结果", type: "select", options: ["全部", "冲突", "待定", "已一致"] }
+      ],
+      rows: [
+        ["HS-2026-031", "全集团", "申报 vs 主数据", "8542.31 vs ERP 8542.39", "许可证 3C 交叉", "归类辅助", "输出：<em>监管条件 B</em> 与当前申报不符", "高", "待改单", "打开比对"],
+        ["HS-2026-032", "进口岗", "税则年鉴更新", "2026-01 版", "要素对齐", "智能预审", "输出：受影响 SKU 子表 42 行", "中", "分发中", "导出 Excel"]
+      ]
+    },
+    "cmp-item": {
+      bc: "合规管理 / 物项识别输出",
+      today: { demand: 5, ai: 2, manual: 3 },
+      cmsMods: "两用物项清单；ECCN 对照；最终用途/用户问卷；法务复核流",
+      skills: ["验核辅助", "关务问答", "需求智能体"],
+      filters: [
+        { label: "ECCN/清单", type: "text" },
+        { label: "最终用户", type: "text" },
+        { label: "输出状态", type: "select", options: ["全部", "待工程师", "待法务", "已签发"] }
+      ],
+      rows: [
+        ["ITM-2026-007", "射频模组", "物项判定书草稿", "5A992 候选", "技术参数包", "验核辅助", "输出：<em>物项识别摘要</em> + 3 份图纸索引", "高", "人审", "打开包"],
+        ["ITM-2026-008", "出口订单", "再出口路径", "经 E 国中转", "许可例外核查", "关务问答", "输出：<em>许可例外条款</em>适用性提示", "中", "待补充", "打开台账"]
+      ]
+    },
+    "cmp-audit": {
+      bc: "合规管理 / 海关已下指令正式稽核查",
+      today: { demand: 4, ai: 1, manual: 3 },
+      cmsMods: "仅纳入<strong>海关已正式下达</strong>的稽查/核查通知书或具有同等效力的指令；通知书编号、送达日期、关区、经办人台账；调阅清单版本；整改与结案证据归档（不含未立案日常咨询）",
+      skills: ["验核辅助", "智能预审", "时效督办"],
+      filters: [
+        { label: "通知书/指令编号", type: "text" },
+        { label: "关区", type: "text" },
+        { label: "下达日期起", type: "date" },
+        { label: "阶段", type: "select", options: ["全部", "通知已送达", "资料提交", "实地稽核", "结论整改", "已结案"] }
+      ],
+      rows: [
+        ["AUD-2026-HZ01", "子公司·华东", "海关加工贸易专项稽查", "通知书 No. HZ-2026-015 · 手册 Z4xx", "单损耗核实", "验核辅助", "输出：<em>正式指令应对资料包 V3</em> 含 18 类单证索引", "高", "资料补正中", "打开专案"],
+        ["AUD-2026-SZ02", "子公司·华南", "价格稽查（已下达）", "通知书关联进口 53xx", "同期资料比对", "智能预审", "输出：差异点清单 7 条待法人签章", "中", "待回复", "打开 CMS"]
+      ]
+    },
+    tax: {
+      bc: "中国进口管理 / 进口税金监控",
+      today: { demand: 31, ai: 19, manual: 12 },
+      cmsMods: "税单归集；完税价格异常；进项核对清单",
+      skills: ["税赋辅助", "智能预审"],
+      filters: [
+        { label: "税单日期", type: "date" },
+        { label: "法人", type: "text" },
+        { label: "差异类型", type: "select", options: ["全部", "价格", "税率", "汇率"] }
+      ],
+      rows: [
+        ["TAX-2026-33", "财务共享", "进口增值税对账", "报关单 53xx", "进项匹配", "税赋辅助", "差异：<em>0.6%</em> 在容差内，建议备注归档", "低", "已关闭", "打开税单库"]
+      ]
+    },
+    "customs-demand": {
+      bc: "关务需求智能体 / 企微接入 · 对话 · 分诊 · 工单",
+      today: { demand: 23, ai: 14, manual: 9 },
+      cmsMods: "业务需求侧界面：<strong>企业微信聊天窗口</strong>接入。核心：对话管理、意图识别、知识检索（法规库/SOP库/归类案例/FAQ/政策文件/历史工单）。响应判别：<strong>高置信自动答复</strong>；低置信<strong>转人工工单</strong> → 关务经理工作台（待办列表、知识库维护）。场景含关务政策查询、<strong>归类与监管条件指引</strong>、单证材料、历史案例等。输出：自动答复或工单结论后 CLOSE。",
+      skills: ["需求智能体", "需求解析", "关务问答", "智能预审", "时效督办"],
+      filters: [
+        { label: "工单/会话号", type: "text" },
+        { label: "接入来源", type: "select", options: ["全部", "企微", "邮件", "ITSM"] },
+        { label: "意图", type: "select", options: ["全部", "政策", "归类与监管条件", "原产地", "许可证", "费用", "稽查应对", "其他"] },
+        { label: "置信度", type: "select", options: ["全部", "高（自动）", "低（人工）"] },
+        { label: "状态", type: "select", options: ["全部", "对话中", "已自动关闭", "待经理处理", "已完结"] }
+      ],
+      rows: [
+        ["REQ-2026-1209", "海外销售", "企微会话→工单", "新品玻璃盖板 · HTS 指引", "低置信", "需求智能体", "已检索<strong>归类案例库</strong>并挂 <strong>商品编码工作台</strong>；待经理确认", "中", "待经理", "打开工单"],
+        ["REQ-2026-1210", "采购", "手册余料调拨咨询", "手册 A→B", "任务流", "需求解析", "自动路由 <strong>加贸调拨审批</strong> 并生成待办", "低", "处理中", "打开工单"],
+        ["AGT-2026-501", "市场部", "语音转写→意图识别", "晨会纪要附件", "多分诊", "需求智能体", "输出：<em>3 条独立需求</em> + 推荐 SKILL 链 + 承接子台", "低", "已自动/已派单", "查看轨迹"],
+        ["AGT-2026-502", "客服", "邮件聚类", "同一票 7 封邮件", "高置信候选", "关务问答", "输出：政策条款摘要 + <strong>直接答复</strong>草稿（已发企微）", "低", "已关闭", "查看轨迹"]
+      ]
+    },
+    "customs-fee": {
+      bc: "报关行资源和费用管理 / 报关费用",
+      today: { demand: 14, ai: 7, manual: 7 },
+      cmsMods: "报关行报价协议；预估费用引擎；实际账单 OCR；差异申诉台账",
+      skills: ["税赋辅助", "智能预审", "制单辅助"],
+      filters: [
+        { label: "报关行", type: "text" },
+        { label: "合同协议号", type: "text" },
+        { label: "费用类型", type: "select", options: ["全部", "报关费", "三检", "港杂", "滞报金", "异常减免"] }
+      ],
+      rows: [
+        ["FEE-2026-077", "共享中心", "账单对账", "协议价 vs 账单", "舱单变更附加费", "智能预审", "输出：<em>+¥2,400</em> 无合同依据标红", "中", "申诉中", "打开费用库"],
+        ["FEE-2026-078", "出口课", "整票预估", "协议 CVTE-SK-xx", "开标前评审", "税赋辅助", "输出：费用区间 + 敏感性分析", "低", "已采纳", "打开 CMS"]
+      ]
+    },
+    "broker-qualification": {
+      bc: "报关行资源和费用管理 / 供应商资质管理",
+      today: { demand: 4, ai: 2, manual: 2 },
+      cmsMods: "报关行准入台账与主数据；代理报关备案、协议有效期、证照到期预警。<strong>公示信用等级</strong>引用<strong>海关总署「中国海关企业进出口信用信息公示平台」</strong>（高级认证企业等），定期同步。<strong>与合规 · 申报要素核查</strong>：本台管<strong>报关行主体资质与公示等级</strong>；申报要素核查管单票<strong>申报要素与归并信息</strong>，索引可交叉、台账分列。",
+      skills: ["智能预审", "验核辅助"],
+      filters: [
+        { label: "报关行名称", type: "text" },
+        { label: "口岸/子公司", type: "text" },
+        { label: "公示信用等级", type: "select", options: ["全部", "高级认证企业", "注册登记和备案企业", "其他"] },
+        { label: "资质维度", type: "select", options: ["全部", "代理报关资质", "协议/授权有效期", "准入黑名单"] },
+        { label: "同步批次", type: "select", options: ["全部", "最近同步", "待复核差异"] }
+      ],
+      rows: [
+        ["QUAL-2026-031", "子公司·华南", "报关行主数据·准入", "报关行 A · 深圳；<em>公示：高级认证企业</em>", "证照复核", "验核辅助", "输出：备案号一致；<em>下次换证 2026-09</em>", "低", "已通过", "打开资质档案"],
+        ["QUAL-2026-032", "广州视琨", "公示等级同步", "报关行 B · 上海；<em>公示：注册登记和备案企业</em>", "公示与 CMS 差异", "智能预审", "输出：<em>1 条字段待人工确认</em>（注册地址变更）", "中", "待确认", "打开公示快照"]
+      ]
+    },
+    "broker-performance": {
+      bc: "报关行资源和费用管理 / 供应商绩效管理",
+      today: { demand: 4, ai: 2, manual: 2 },
+      cmsMods: "KPI 与实单回写；合同 SLA；季度/月度考评与整改闭环。列表组织维度为<strong>子公司名称</strong>（绩效对账与回顾按法人归集）。",
+      skills: ["智能预审", "时效督办", "申报跟踪"],
+      filters: [
+        { label: "报关行名称", type: "text" },
+        { label: "口岸/子公司", type: "text" },
+        { label: "考评周期", type: "select", options: ["全部", "2026Q1", "月度", "滚动30天"] },
+        { label: "指标", type: "select", options: ["全部", "申报及时率", "退改单率", "查验率", "沟通响应 SLA"] }
+      ],
+      rows: [
+        ["KPI-2026-Q1-A", "子公司·华南", "季度绩效评审", "报关行 A · 深圳", "SLA 对账", "智能预审", "输出：<em>综合分 86</em>；退改单率略高于阈值", "中", "待复盘会", "打开绩效包"],
+        ["KPI-2026-M03-B", "广州视琨", "红黑榜更新", "报关行 B · 上海", "查验率异动", "申报跟踪", "输出：<em>同类口岸对比</em> 偏高 +1.2pp", "高", "已发整改函", "打开 CMS"]
+      ]
+    },
+    "broker-share": {
+      bc: "报关行资源和费用管理 / 业务占比份额（费用）",
+      today: { demand: 2, ai: 1, manual: 1 },
+      cmsMods: "按法人、口岸、报关行维度的业务量<strong>占比与份额</strong>；归集本期<strong>计费票数 / 金额</strong>与协议单价；与<strong>报关费用工作台</strong>账单 OCR、差异申诉联动。",
+      skills: ["税赋辅助", "智能预审"],
+      filters: [
+        { label: "报关行名称", type: "text" },
+        { label: "子公司/口岸", type: "text" },
+        { label: "统计周期", type: "select", options: ["全部", "本月", "本季度", "滚动90天"] },
+        { label: "费用口径", type: "select", options: ["全部", "实际账单", "协议预估", "偏差>5%"] }
+      ],
+      rows: [
+        ["SHR-2026-Q1-01", "集团汇总", "份额·进出口合计", "报关行 A · 华南口岸", "份额锁定评审", "智能预审", "输出：<em>份额 34%</em>；本期费用 <em>¥428万</em>；较协议 +2.1%", "中", "待签章", "打开份额表"],
+        ["SHR-2026-Q1-02", "子公司·华东", "单一报关行上限", "报关行 C · 宁波", "超份额预警", "税赋辅助", "输出：<em>份额 41%</em> 超阈值 35%；建议拆单", "高", "已推送费用台", "打开费用联动"]
+      ]
+    },
+    aeo: {
+      bc: "合规管理 / AEO 高级认证",
+      today: { demand: 8, ai: 3, manual: 5 },
+      cmsMods: "认证标准条款；内审计划；穿行测试证据；证书到期与重新认证里程碑",
+      skills: ["智能预审", "验核辅助", "时效督办"],
+      filters: [
+        { label: "标准条款", type: "text" },
+        { label: "证据包", type: "text" },
+        { label: "阶段", type: "select", options: ["全部", "差距分析", "整改中", "模拟审核", "正式申请", "年审维护", "证书维护"] }
+      ],
+      rows: [
+        ["AEO-2026-01", "关务部", "穿行测试-单证复核", "条款 4.2", "抽样 20 票", "验核辅助", "输出：<em>发现项 2</em> 已转责任部门", "中", "整改中", "打开证据库"],
+        ["AEO-2026-02", "内审", "证书到期预警", "2027-03", "重认排期", "时效督办", "输出：甘特建议稿（示意）", "低", "监控中", "打开里程碑"]
+      ]
+    },
+    "cmp-qualification": {
+      bc: "合规管理 / 申报要素核查",
+      today: { demand: 3, ai: 1, manual: 2 },
+      cmsMods: "报关单<strong>申报要素</strong>与归并信息、规格型号、品牌、用途等与归类结论及主数据交叉核查；提示要素缺失、与 HS 描述不符、与历史票不一致；与商品编码工作台已发布税号、制单辅助勾稽",
+      skills: ["智能预审", "归类辅助", "验核辅助"],
+      filters: [
+        { label: "报关单号", type: "text" },
+        { label: "物料/归并号", type: "text" },
+        { label: "差异类型", type: "select", options: ["全部", "要素缺失", "规格型号冲突", "品牌与备案不符", "用途未填报", "与 HS 不符"] },
+        { label: "状态", type: "select", options: ["全部", "待修订", "已解释归档", "需改单"] }
+      ],
+      rows: [
+        ["ELM-2026-01", "子公司·华东", "申报要素核查任务", "4710xxxx 第 3 行 · 传感器模组", "规格型号 vs 历史票", "智能预审", "输出：<em>申报型号缺少 firmware 版本</em>建议补录", "中", "待修订", "打开 CMS"],
+        ["ELM-2026-02", "广州视琨", "要素与归类联动", "协议 CVTE-SK-xx", "品牌栏位", "验核辅助", "输出：品牌与<strong>备案信息</strong>一致；需同步 ERP 中文名", "低", "已归档", "导出核查表"]
+      ]
+    },
+    "cmp-cases": {
+      bc: "合规管理 / 合规案例与风险趋势",
+      today: { demand: 3, ai: 2, manual: 1 },
+      cmsMods: "历史差错/稽核查/物项判例；根因标签；复发率；培训素材索引；与管理驾驶舱联动",
+      skills: ["验核辅助", "关务问答", "需求解析"],
+      filters: [
+        { label: "案例编号", type: "text" },
+        { label: "根因域", type: "select", options: ["全部", "HS", "原产", "价格", "物项", "单证", "代理", "系统主数据"] },
+        { label: "统计期", type: "select", options: ["全部", "本月", "本季", "本年"] }
+      ],
+      rows: [
+        ["CS-2026-040", "复盘库", "两用误报复盘", "参数缺省模板", "模型 3.1 版", "验核辅助", "输出：<em>补参清单</em>已并入物项子台规则", "中", "已关闭", "查看案例"],
+        ["CS-2026-041", "关务 CoE", "价格稽查类推", "转让定价带宽", "华东法人", "关务问答", "输出：同类已结案例 5 条 + 应对要点", "低", "活跃", "导出简报"]
+      ]
+    },
+    "cmp-regulatory": {
+      bc: "合规管理 / 监管回执与指令台账",
+      today: { demand: 4, ai: 2, manual: 2 },
+      cmsMods: "TCS/单一窗口回执归档；布控与验核通知编号；许可数据同步差异；查验结果与报关单勾稽（实现按集成范围分段）",
+      skills: ["申报跟踪", "通关反馈", "时效督办", "验核辅助"],
+      filters: [
+        { label: "报关单号", type: "text" },
+        { label: "回执类型", type: "select", options: ["全部", "放行", "查验", "退单", "结关", "布控", "征询"] },
+        { label: "法人", type: "text" },
+        { label: "同步状态", type: "select", options: ["全部", "已入库", "解析失败", "待人工"] }
+      ],
+      rows: [
+        ["REG-2026-112", "华南", "TCS 状态回写", "4710xxxx", "放行回执晚于 ETA", "申报跟踪", "输出：<em>SLA +6h</em> 已标黄同步报关行", "中", "跟进中", "打开台账"],
+        ["REG-2026-113", "华东", "布控指令", "布控单 B-778", "需到场配合", "时效督办", "输出：任务分派至厂区 + 法务抄送", "高", "待到场", "打开指令包"]
+      ]
+    }
+  };
+
+  var complianceAgentStripHtml = {
+    compliance:
+      '<div class="cas-head">关务合规智能体 · 与本模块对应关系</div>' +
+      '<div class="cas-row"><span class="cas-tag cas-pre">事前</span><span><strong>需求解析 / 合规预审智能体</strong>：制裁与管制初筛、字段完整性；汇聚多维度待办入口。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-mid">事中</span><span><strong>实时风险扫描总控</strong>：联动原产、价格、HS、物项子台；申报前一致性抽检路由。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-post">事后</span><span>验核数据归集与<strong>升级工单</strong>（转稽核/物项/法务）。</span></div>' +
+      '<div class="cas-path"><strong>落地路径：</strong>P1 规则与名单版本治理 → P2 扫描任务编排与 SLA → 与内控推送对接。</div>',
+    "cmp-qualification":
+      '<div class="cas-head">关务合规智能体 · 与本模块对应关系</div>' +
+      '<div class="cas-row"><span class="cas-tag cas-mid">事中</span><span><strong>申报要素核查</strong>：申报要素与 HS 描述、归类结论、规格型号/品牌/用途等与主数据一致；与商品编码工作台发布税号勾稽。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-post">事后</span><span>要素类差错<strong>复盘进案例库</strong>；重大差异可关联已下指令稽查专案。</span></div>' +
+      '<div class="cas-path"><strong>落地路径：</strong>P2 规则引擎 + 历史票比对；与制单/OCR 字段联动。</div>',
+    "cmp-origin":
+      '<div class="cas-head">关务合规智能体 · 与本模块对应关系</div>' +
+      '<div class="cas-row"><span class="cas-tag cas-mid">事中</span><span><strong>实时合规扫描 · 原产地维</strong>：FTA 实质性改变、工序/供应商国别变更、证书链与报关享惠比对。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-post">事后</span><span>享惠被质疑时的<strong>证据包索引</strong>（BOM/工序/发票）。</span></div>' +
+      '<div class="cas-path"><strong>落地路径：</strong>P0 国别/BOM 主数据 → P2 监控任务与预警阈值。</div>',
+    "cmp-price":
+      '<div class="cas-head">关务合规智能体 · 与本模块对应关系</div>' +
+      '<div class="cas-row"><span class="cas-tag cas-mid">事中</span><span><strong>实时合规扫描 · 价格维</strong>：报关价波动、关联交易带宽、同期资料交叉提示。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-post">事后</span><span>审价/稽查场景的<strong>结构化应答草稿</strong>（人审出口）。</span></div>' +
+      '<div class="cas-path"><strong>落地路径：</strong>P2 算法与 TP 参数 → P3 与财务/税务文档库联动。</div>',
+    "cmp-hs":
+      '<div class="cas-head">关务合规智能体 · 与本模块对应关系</div>' +
+      '<div class="cas-row"><span class="cas-tag cas-pre">事前</span><span><strong>归类智能体</strong>输出与税则变更雷达；监管条件/许可证随附提示。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-mid">事中</span><span><strong>申报 HS 与主数据一致性</strong>检查、改单阻断策略。</span></div>' +
+      '<div class="cas-path"><strong>落地路径：</strong>P1 ERP-HS 映射治理；与<strong>商品编码工作台</strong>双轨同步。</div>',
+    "cmp-item":
+      '<div class="cas-head">关务合规智能体 · 与本模块对应关系</div>' +
+      '<div class="cas-row"><span class="cas-tag cas-pre">事前</span><span><strong>两用物项精准识别</strong>：技术参数抽取、清单比对、缺参提醒、最终用途/用户筛查。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-mid">事中</span><span><strong>许可证自动核碰</strong>与申报行勾稽（黄标强制人审）。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-post">事后</span><span><strong>识别准确率监测</strong>、抽检与模型版本。</span></div>' +
+      '<div class="cas-path"><strong>落地路径：</strong>P1 规则/模型 → P2 核碰 → <strong>持续运营</strong>准确率看板。</div>',
+    "cmp-audit":
+      '<div class="cas-head">关务合规智能体 · 与本模块对应关系</div>' +
+      '<div class="cas-row"><span class="cas-tag cas-post">事后</span><span>本工作台<strong>仅接收海关已正式下达</strong>的稽查/核查指令或通知书；<strong>验核应对智能体</strong>输出资料包、证据索引、应答草稿（人工终审用印）。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-mid">事中</span><span>单票穿行仿真可在<strong>指令应对</strong>前作为内控步骤（可选）。</span></div>' +
+      '<div class="cas-path"><strong>落地路径：</strong>P3 通知书台账 + 版本化归档；与<strong>案例库</strong>、<strong>监管回执台账</strong>联动。</div>',
+    "cmp-cases":
+      '<div class="cas-head">关务合规智能体 · 与本模块对应关系</div>' +
+      '<div class="cas-row"><span class="cas-tag cas-post">事后</span><span><strong>风险趋势与案例库</strong>：根因标签、复发监控、培训输入；反哺规则与模型训练。</span></div>' +
+      '<div class="cas-path"><strong>落地路径：</strong>P3 知识沉淀；与物项/稽查/价格模块<strong>交叉引用</strong>。</div>',
+    "cmp-regulatory":
+      '<div class="cas-head">关务合规智能体 · 与本模块对应关系</div>' +
+      '<div class="cas-row"><span class="cas-tag cas-reg">底座</span><span>蓝图<strong>海关监管对接</strong>：TCS/单一窗口回执、布控指令、验核通知、查验结果回写、<strong>许可数据同步</strong>（分段集成）。</span></div>' +
+      '<div class="cas-path"><strong>落地路径：</strong>P2 回执范围与解析 → 异常人工台；安全与法务评审前置。</div>',
+    aeo:
+      '<div class="cas-head">关务合规智能体 · 与本模块对应关系</div>' +
+      '<div class="cas-row"><span class="cas-tag cas-aeo">底座</span><span>蓝图<strong>企业自查与 AEO 认证</strong>：标准条款库、差异报告、准入/年审穿行、年度合规报告、两用识别准确率纳入内控。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-pre">事前</span><span>AEO 自查清单支撑<strong>准入穿行</strong>。</span></div>' +
+      '<div class="cas-row"><span class="cas-tag cas-post">事后</span><span><strong>年审辅助</strong>报告草稿与里程碑督办。</span></div>' +
+      '<div class="cas-path"><strong>落地路径：</strong>P3 证据包与内审制度对齐；证书扫描件与海关公示抽核。</div>'
+  };
+
+  var commodityFlowStripHtml =
+    '<div class="cas-head">商品归类智能体 · 流程与 HSCS / iGCM 能力（参考蓝图）</div>' +
+    '<div class="cas-row"><span class="cas-tag cas-pre">场景</span><span><strong>新物料/新产品首次报关归类需求</strong>；输入：产品资料、技术规格书、自然语言描述。</span></div>' +
+    '<div class="cas-row"><span class="cas-tag cas-mid">主流程</span><span>智能问答与信息收集 → <strong>工程师</strong>补料 → AI <strong>解析</strong> → <strong>同类产品历史归类</strong>查询 → <strong>HS 编码推荐</strong> → <strong>税率/监管条件</strong>查询 → <strong>关务经理</strong>确认归类结果 → <strong>回写</strong>系统 → 输出<strong>归类报告</strong>及税率、监管条件文件 → CLOSE。</span></div>' +
+    '<div class="cas-row"><span class="cas-tag cas-reg">HSCS 菜单域</span><span>待办事项、物料归类（归类申请/海外归类/申请单与物料查询）、海关规则基础信息、填报辅助服务、归类结果查询、统计报表、数据管理等（类 <strong>HSCS | 海关规则编码归类系统</strong>）。</span></div>' +
+    '<div class="cas-path"><strong>列表关键列：</strong>申请单号、HSCode、<strong>AI/智能税号推荐</strong>、国家/地区、规格型号、状态、UUID、归类类型（如系统推荐）。<strong>iGCM 策略：</strong>低风险自动发布，高风险智能归类 + <strong>强制人工复核</strong>。</div>';
+
+  var demandAgentStripHtml =
+    '<div class="cas-head">关务需求智能体 · 统一工作台（参考蓝图）</div>' +
+    '<div class="cas-row"><span class="cas-tag cas-pre">场景</span><span>关务政策查询；<strong>归类与监管条件指引</strong>；单证材料；历史案例等需求。</span></div>' +
+    '<div class="cas-row"><span class="cas-tag cas-mid">接入</span><span>业务需求侧界面 · <strong>企业微信聊天窗口</strong> → 对话管理 → 意图识别 → <strong>知识检索</strong>（法规库、SOP库、<strong>归类案例</strong>、FAQ、政策文件、历史工单库）。</span></div>' +
+    '<div class="cas-row"><span class="cas-tag cas-post">判别</span><span><strong>高置信</strong> → 自动答复；<strong>低置信</strong> → 转人工工单 → <strong>关务经理工作台</strong>（待办工单列表、知识库维护）→ 输出答复/工单结论 → CLOSE。</span></div>' +
+    '<div class="cas-path"><strong>联动：</strong>归类类问题可一键生成子任务至 <strong>商品编码工作台</strong>；复杂场景保留任务流与审计轨迹。</div>';
+
+  function updateCommodityFlowStrip(panelKey) {
+    var el = document.getElementById("commodityFlowStrip");
+    if (!el) return;
+    if (!panelKey || panelKey !== "commodity") {
+      el.innerHTML = "";
+      el.classList.add("panel-hidden");
+      return;
+    }
+    el.innerHTML = commodityFlowStripHtml;
+    el.classList.remove("panel-hidden");
+  }
+
+  function updateDemandAgentStrip(panelKey) {
+    var el = document.getElementById("demandAgentStrip");
+    if (!el) return;
+    if (!panelKey || panelKey !== "customs-demand") {
+      el.innerHTML = "";
+      el.classList.add("panel-hidden");
+      return;
+    }
+    el.innerHTML = demandAgentStripHtml;
+    el.classList.remove("panel-hidden");
+  }
+
+  function updateComplianceAgentStrip(panelKey) {
+    var el = document.getElementById("complianceAgentStrip");
+    if (!el) return;
+    if (!panelKey) {
+      el.innerHTML = "";
+      el.classList.add("panel-hidden");
+      return;
+    }
+    var html = complianceAgentStripHtml[panelKey];
+    if (html) {
+      el.innerHTML = html;
+      el.classList.remove("panel-hidden");
+    } else {
+      el.innerHTML = "";
+      el.classList.add("panel-hidden");
+    }
+  }
+
+  function renderFilters(cfg) {
+    var grid = document.getElementById("filterGrid");
+    grid.innerHTML = "";
+    cfg.filters.forEach(function (f) {
+      var wrap = document.createElement("div");
+      wrap.className = "field";
+      var lab = document.createElement("label");
+      lab.textContent = f.label;
+      var input;
+      if (f.type === "select") {
+        input = document.createElement("select");
+        f.options.forEach(function (o) {
+          var opt = document.createElement("option");
+          opt.value = o;
+          opt.textContent = o;
+          input.appendChild(opt);
+        });
+      } else {
+        input = document.createElement("input");
+        input.type = f.type || "text";
+      }
+      wrap.appendChild(lab);
+      wrap.appendChild(input);
+      grid.appendChild(wrap);
+    });
+  }
+
+  function renderSkills(names) {
+    var el = document.getElementById("skillChips");
+    el.innerHTML = "";
+    names.forEach(function (n, i) {
+      var s = document.createElement("span");
+      s.className = "skill-chip" + (i < 2 ? " run" : "");
+      s.textContent = n;
+      el.appendChild(s);
+    });
+  }
+
+  function formatTodayZh() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    var wk = ["日", "一", "二", "三", "四", "五", "六"][d.getDay()];
+    return y + "年" + m + "月" + day + "日 星期" + wk;
+  }
+
+  function sumTodayAll() {
+    var d = 0;
+    var a = 0;
+    var m = 0;
+    Object.keys(listConfig).forEach(function (k) {
+      var t = listConfig[k].today;
+      if (!t) return;
+      d += t.demand;
+      a += t.ai;
+      m += t.manual;
+    });
+    return { demand: d, ai: a, manual: m };
+  }
+
+  function setTodayNumbers(demandId, aiId, manualId, t) {
+    var elD = document.getElementById(demandId);
+    var elA = document.getElementById(aiId);
+    var elM = document.getElementById(manualId);
+    if (elD) elD.textContent = t.demand;
+    if (elA) elA.textContent = t.ai;
+    if (elM) elM.textContent = t.manual;
+  }
+
+  function fillListToday(cfg) {
+    var t = cfg.today || { demand: "—", ai: "—", manual: "—" };
+    setTodayNumbers("tdDemand", "tdAi", "tdManual", t);
+    var ld = document.getElementById("listTodayDate");
+    if (ld) ld.textContent = formatTodayZh();
+  }
+
+  function fillOverviewToday() {
+    var s = document.getElementById("overviewTodayScope");
+    if (s) {
+      s.textContent = "今日业务量（各工作台合计 · 示意） · " + formatTodayZh();
+    }
+    setTodayNumbers("ovTodayDemand", "ovTodayAi", "ovTodayManual", sumTodayAll());
+  }
+
+  function fillMapToday() {
+    setTodayNumbers("mapTodayDemand", "mapTodayAi", "mapTodayManual", sumTodayAll());
+    var md = document.getElementById("mapTodayDate");
+    if (md) md.textContent = formatTodayZh();
+  }
+
+  function milestoneStepUiClass(status) {
+    if (status === "完成") return "mt-done";
+    if (status === "延误") return "mt-warn";
+    return "mt-pending";
+  }
+
+  function shortMilestoneDate(s) {
+    if (!s || s === "—") return "—";
+    return s.replace(/^(\d{4})-(\d{2})-(\d{2})$/, "$2/$3");
+  }
+
+  function renderMilestoneTimeline(milestones) {
+    var el = document.getElementById("milestoneTimeline");
+    if (!el) return;
+    var ms = milestones || [];
+    var parts = [];
+    for (var i = 0; i < ms.length; i++) {
+      var m = ms[i];
+      var cls = milestoneStepUiClass(m.status);
+      parts.push('<div class="mt-step ' + cls + '" title="' + m.name + '">');
+      parts.push('<div class="mt-dot-wrap"><span class="mt-dot" aria-hidden="true"></span></div>');
+      parts.push('<div class="mt-title">' + m.name + "</div>");
+      parts.push('<div class="mt-dates"><span>计 ' + shortMilestoneDate(m.plan) + '</span><span class="mt-d-act">实 ' + shortMilestoneDate(m.actual) + "</span></div>");
+      parts.push('<div class="mt-st">' + m.status + "</div>");
+      parts.push("</div>");
+      if (i < ms.length - 1) {
+        var connOn = ms[i].status === "完成";
+        parts.push('<div class="mt-conn' + (connOn ? " mt-conn-done" : "") + '" aria-hidden="true"></div>');
+      }
+    }
+    el.innerHTML = '<div class="mt-rail">' + parts.join("") + "</div>";
+  }
+
+  function renderOverseasLane(cfg) {
+    var wrap = document.getElementById("overseasLanePanel");
+    if (!wrap) return;
+    var ol = cfg.overseasLane;
+    if (!ol) {
+      wrap.classList.add("panel-hidden");
+      return;
+    }
+    wrap.classList.remove("panel-hidden");
+
+    var qn = document.getElementById("milestoneQueryNo");
+    if (qn) {
+      qn.value = ol.queryNo || (ol.sampleRef ? ol.sampleRef.split("·")[0].trim() : "");
+    }
+
+    var sub = document.getElementById("overseasLaneSub");
+    if (sub) sub.textContent = ol.subTitle || "";
+
+    var ct = ol.clearanceTimeliness || {};
+    var elRate = document.getElementById("clrRate");
+    var elTarget = document.getElementById("clrTarget");
+    var elPeriod = document.getElementById("clrPeriod");
+    var elNum = document.getElementById("clrNumerator");
+    var elDen = document.getElementById("clrDenominator");
+    if (elRate) elRate.textContent = ct.rate != null ? String(ct.rate) : "—";
+    if (elTarget) elTarget.textContent = ct.target != null ? String(ct.target) : "—";
+    if (elPeriod) elPeriod.textContent = ct.period || "—";
+    if (elNum) elNum.textContent = ct.numerator != null ? String(ct.numerator) : "—";
+    if (elDen) elDen.textContent = ct.denominator != null ? String(ct.denominator) : "—";
+
+    var ruleEl = document.getElementById("clrRule");
+    if (ruleEl) ruleEl.textContent = ol.rule || "口径可在系统参数中配置";
+
+    var refEl = document.getElementById("milestoneRef");
+    if (refEl) refEl.textContent = ol.sampleRef ? "· " + ol.sampleRef : "";
+
+    var hint = document.getElementById("milestoneHint");
+    if (hint) {
+      hint.textContent =
+        "一单到底：自「工厂齐套」至「结关」共 8 个节点；横向时间轴与下表同步。绿色=已完成，灰圈=待办/进行中，橙圈=延误。连接器随前序节点完成变绿。数据来自 MES/WMS、CMS/TCS、船司、目的港代理、口岸结关回执等（示意）。";
+    }
+
+    renderMilestoneTimeline(ol.milestones);
+
+    var tbody = document.getElementById("milestoneTableBody");
+    if (tbody) {
+      tbody.innerHTML = "";
+      (ol.milestones || []).forEach(function (m) {
+        var tr = document.createElement("tr");
+        var stClass = "ms-wait";
+        if (m.status === "完成") stClass = "ms-done";
+        else if (m.status === "延误") stClass = "ms-delay";
+        tr.innerHTML =
+          "<td>" +
+          m.step +
+          "</td><td>" +
+          m.name +
+          "</td><td class='ms-plan'>" +
+          m.plan +
+          "</td><td>" +
+          (m.actual || "—") +
+          "</td><td class='" +
+          stClass +
+          "'>" +
+          m.status +
+          "</td><td>" +
+          (m.lag != null ? m.lag : "—") +
+          "</td><td>" +
+          m.source +
+          "</td>";
+        tbody.appendChild(tr);
+      });
+    }
+  }
+
+  function renderTable(rows) {
+    var tb = document.getElementById("tableBody");
+    tb.innerHTML = "";
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      r.forEach(function (cell, idx) {
+        var td = document.createElement("td");
+        if (idx === 0) {
+          td.innerHTML = '<span class="link">' + cell + "</span>";
+        } else if (idx === 6) {
+          td.innerHTML = '<div class="skill-out">' + cell + "</div>";
+        } else if (idx === 7) {
+          var b = "st-ok";
+          if (cell === "高" || cell === "红") b = "st-risk";
+          else if (cell === "中" || cell === "黄") b = "st-warn";
+          td.innerHTML = '<span class="badge-st ' + b + '">' + cell + "</span>";
+        } else if (idx === 8) {
+          td.innerHTML = '<span class="badge-st st-warn">' + cell + "</span>";
+        } else if (idx === 9) {
+          td.innerHTML = '<span class="link">' + cell + "</span>";
+        } else {
+          td.textContent = cell;
+        }
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  }
+
+  function showList(key) {
+    document.getElementById("panel-overview").classList.add("panel-hidden");
+    document.getElementById("panel-cms-map").classList.add("panel-hidden");
+    document.getElementById("panel-list").classList.remove("panel-hidden");
+
+    var cfg = listConfig[key];
+    if (!cfg) {
+      updateComplianceAgentStrip(null);
+      updateCommodityFlowStrip(null);
+      updateDemandAgentStrip(null);
+      return;
+    }
+
+    updateComplianceAgentStrip(key);
+    updateCommodityFlowStrip(key);
+    updateDemandAgentStrip(key);
+    var thLe = document.getElementById("thLegalEntity");
+    if (thLe) {
+      if (key === "broker-qualification" || key === "broker-performance" || key === "broker-share") thLe.textContent = "子公司名称";
+      else if (key === "hk-import" || key === "hk-export") thLe.textContent = "公司法人名称";
+      else thLe.textContent = "法人";
+    }
+
+    var bcParts = cfg.bc.split(" / ");
+    document.getElementById("bc").innerHTML =
+      "<strong>" + bcParts[0] + "</strong>" + (bcParts[1] ? " / " + bcParts[1] : "");
+    document.getElementById("cmsMods").textContent = cfg.cmsMods;
+    renderSkills(cfg.skills);
+    renderFilters(cfg);
+    renderTable(cfg.rows);
+    fillListToday(cfg);
+    renderOverseasLane(cfg);
+  }
+
+  function showOverview() {
+    document.getElementById("panel-list").classList.add("panel-hidden");
+    document.getElementById("panel-cms-map").classList.add("panel-hidden");
+    document.getElementById("panel-overview").classList.remove("panel-hidden");
+    updateComplianceAgentStrip(null);
+    updateCommodityFlowStrip(null);
+    updateDemandAgentStrip(null);
+    fillOverviewToday();
+  }
+
+  function showCmsMap() {
+    document.getElementById("panel-overview").classList.add("panel-hidden");
+    document.getElementById("panel-list").classList.add("panel-hidden");
+    document.getElementById("panel-cms-map").classList.remove("panel-hidden");
+    updateComplianceAgentStrip(null);
+    updateCommodityFlowStrip(null);
+    updateDemandAgentStrip(null);
+    fillMapToday();
+  }
+
+  function setActive(btn) {
+    document.querySelectorAll(".nav-item").forEach(function (b) {
+      b.classList.toggle("active", b === btn);
+    });
+  }
+
+  document.querySelectorAll(".nav-item").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var panel = btn.getAttribute("data-panel");
+      setActive(btn);
+      document.getElementById("topbarTitle").textContent = titles[panel] || panel;
+
+      if (panel === "overview") {
+        showOverview();
+      } else if (panel === "cms-map") {
+        showCmsMap();
+      } else if (panel === "import-hub" || panel === "export-hub" || panel === "pt-hub" || panel === "overseas-hub" || panel === "compliance-hub") {
+        if (panel === "import-hub") showList("import");
+        else if (panel === "export-hub") showList("export-parts");
+        else if (panel === "pt-hub") showList("pt-domestic");
+        else if (panel === "compliance-hub") showList("compliance");
+        else showList("export-us");
+        if (panel === "import-hub") {
+          document.getElementById("topbarTitle").textContent =
+            "中国进口管理 · 默认展示进口报关（可点「进口税金监控工作台」切换）";
+        } else if (panel === "export-hub") {
+          document.getElementById("topbarTitle").textContent =
+            "中国出口管理 · 默认展示部件出口（可点子项切换：整机 / 孵化公司出口）";
+        } else if (panel === "overseas-hub") {
+          document.getElementById("topbarTitle").textContent =
+            "海外关务管理 · 默认展示美国子公司（可点子项切换）";
+        } else if (panel === "compliance-hub") {
+          document.getElementById("topbarTitle").textContent =
+            "合规管理 · 综合筛查（各子模块顶栏含关务合规智能体映射与落地路径）";
+        } else {
+          document.getElementById("topbarTitle").textContent =
+            "中国加工贸易 · 默认展示内销补税（可点子项切换）";
+        }
+      } else {
+        showList(panel);
+      }
+    });
+  });
+
+  fillOverviewToday();
+})();
+  </script>
+</body>
+</html>

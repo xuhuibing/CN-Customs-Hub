@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>关务部工作经营分析看板 · 与智能协作工作台联动（原型）</title>
+  <style>
+    :root {
+      --bg: #0c1222;
+      --surface: #141c2f;
+      --surface2: #1a2540;
+      --border: #2a3655;
+      --text: #e8edf7;
+      --muted: #8b9dc3;
+      --accent: #3b82f6;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --risk: #ef4444;
+      --purple: #a855f7;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: sticky; top: 0; z-index: 10; }
+    }
+
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+    }
+
+    .brand {
+      font-weight: 800;
+      font-size: 15px;
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+      margin-bottom: 24px;
+    }
+
+    .nav-section {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 16px 0 8px;
+    }
+
+    .nav-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      margin-bottom: 4px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active {
+      background: var(--surface2);
+      color: var(--text);
+      border-left-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .main {
+      padding: 20px 24px 40px;
+      overflow-x: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .topbar-meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .topbar-sub {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 16px;
+      margin-top: 6px;
+    }
+
+    .period-picker {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .period-picker .period-label {
+      font-weight: 600;
+      color: var(--text);
+      margin-right: 2px;
+    }
+
+    .period-picker .period-sep {
+      color: var(--muted);
+      user-select: none;
+    }
+
+    .period-picker select {
+      appearance: auto;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      min-width: 5.5rem;
+    }
+
+    .period-picker select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pill {
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: 99px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .pill strong { color: var(--text); }
+
+    section.panel {
+      display: none;
+      animation: fade 0.25s ease;
+    }
+
+    section.panel.active { display: block; }
+
+    @keyframes fade {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .alert-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .alert-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      border-left: 4px solid var(--border);
+    }
+
+    .alert-card.risk { border-left-color: var(--risk); }
+    .alert-card.ok { border-left-color: var(--ok); }
+    .alert-card.warn { border-left-color: var(--warn); }
+
+    .alert-card .label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .alert-card .val {
+      font-size: 18px;
+      font-weight: 800;
+      margin-top: 6px;
+    }
+
+    .alert-card .hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+
+    .kpi .k-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .kpi .k-num {
+      font-size: 24px;
+      font-weight: 800;
+      margin-top: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .kpi .k-delta {
+      font-size: 12px;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    .kpi .k-delta.up { color: #4ade80; }
+    .kpi .k-delta.down { color: #f87171; }
+    .kpi .k-delta.flat { color: var(--muted); }
+
+    .kpi .k-unit {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-left: 2px;
+    }
+
+    .block-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin: 24px 0 12px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .block-title::before {
+      content: "";
+      width: 4px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: auto;
+    }
+
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 720px;
+    }
+
+    table.data th {
+      text-align: left;
+      padding: 12px 14px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      white-space: nowrap;
+      color: var(--muted);
+    }
+
+    table.data td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    table.data tr:last-child td { border-bottom: none; }
+    table.data tr:hover td { background: rgba(59, 130, 246, 0.06); }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .b-ok { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+    .b-warn { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+    .b-risk { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+    .b-info { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+
+    .scan-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+
+    .scan-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+
+    .scan-card .sn { font-size: 11px; color: var(--muted); font-weight: 600; }
+    .scan-card .big { font-size: 20px; font-weight: 800; margin-top: 6px; }
+    .scan-card .row { font-size: 11px; color: var(--muted); margin-top: 8px; display: flex; justify-content: space-between; }
+
+    footer.note {
+      margin-top: 28px;
+      font-size: 11px;
+      color: var(--muted);
+      max-width: 900px;
+      line-height: 1.5;
+    }
+
+    .workbench-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #93c5fd;
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      margin-bottom: 16px;
+    }
+
+    .workbench-link:hover { background: #1e3a5f; color: #fff; }
+
+    .split-wrap {
+      margin: 16px 0;
+    }
+
+    .split-bar {
+      display: flex;
+      height: 28px;
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .split-ai {
+      background: linear-gradient(90deg, #7c3aed, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18%;
+    }
+
+    .split-manual {
+      background: linear-gradient(90deg, #ea580c, #f97316);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18%;
+    }
+
+    .risk-list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .risk-list li { margin-bottom: 6px; }
+
+    .link-mini {
+      font-size: 11px;
+      color: var(--accent);
+      margin-top: 8px;
+    }
+
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .pillar-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      border-top: 3px solid #6366f1;
+    }
+
+    .pillar-card:nth-child(2) { border-top-color: #0ea5e9; }
+    .pillar-card:nth-child(3) { border-top-color: #22c55e; }
+    .pillar-card:nth-child(4) { border-top-color: #f59e0b; }
+
+    .pillar-card h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .pillar-card p {
+      margin: 0;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .callout-scm {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(14, 165, 233, 0.08));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .callout-scm strong { color: var(--text); }
+
+    .plan-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .btn-plan {
+      font-size: 12px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+    }
+
+    .btn-plan:hover { background: #1e3a5f; border-color: var(--accent); }
+
+    .btn-plan-primary {
+      background: #1d4ed8;
+      border-color: #1d4ed8;
+      color: #fff;
+    }
+
+    .btn-plan-primary:hover { background: #2563eb; }
+
+    .cell-edit {
+      outline: none;
+      border-radius: 4px;
+      min-height: 1.25em;
+    }
+
+    .cell-edit:focus {
+      box-shadow: 0 0 0 2px var(--accent);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    table.data td[contenteditable="true"] { cursor: text; }
+
+    input.plan-input,
+    select.plan-select {
+      width: 100%;
+      max-width: 130px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+
+    select.plan-select { max-width: 160px; cursor: pointer; }
+
+    .budget-three {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .budget-mod {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      border-top: 3px solid #8b5cf6;
+    }
+
+    .budget-mod:nth-child(2) { border-top-color: #16a34a; }
+    .budget-mod:nth-child(3) { border-top-color: #0e7490; }
+
+    /* 费用预算：一行预算（4 格）+ 一行实际发生（4 格），整页单列上下排布 */
+    .fee-budget-strip-wrap {
+      margin-bottom: 4px;
+    }
+
+    .fee-budget-strip-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--text);
+      margin: 0 0 8px;
+    }
+
+    .fee-budget-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: stretch;
+      width: 100%;
+    }
+
+    @media (max-width: 1024px) {
+      .fee-budget-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 520px) {
+      .fee-budget-strip {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .fee-budget-strip--budget .budget-mod:nth-child(1) { border-top-color: #8b5cf6; }
+    .fee-budget-strip--budget .budget-mod:nth-child(2) { border-top-color: #16a34a; }
+    .fee-budget-strip--budget .budget-mod:nth-child(3) { border-top-color: #0e7490; }
+
+    .fee-budget-strip--actual .budget-mod.fee-act-mod--normal { border-top-color: #22c55e; }
+    .fee-budget-strip--actual .budget-mod.fee-act-mod--abnormal { border-top-color: #f59e0b; }
+
+    .fee-budget-strip .kpi .k-num {
+      font-size: clamp(16px, 2.2vw, 22px);
+    }
+
+    .kpi.kpi--fee-total {
+      border-top: 3px solid #6366f1;
+    }
+
+    .budget-mod .bm-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .budget-mod .bm-hint {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    .budget-mod input.plan-input { max-width: 100%; margin-top: 4px; }
+
+    .sr-only-file {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">关务部工作经营分析看板</div>
+      <div class="brand-sub">与关务智能协作工作台数据联动 · 风险 / 规模 / 交付 / 费用 / 人力与 AI（示意）</div>
+
+      <a class="workbench-link" href="customs-intelligent-workbench-v2-integrated.html">打开关务智能协作工作台</a>
+
+      <div class="nav-section">导航</div>
+      <button type="button" class="nav-item active" data-panel="exec">总览与红线 · 目标达成</button>
+      <button type="button" class="nav-item" data-panel="workforce">人力与智能协作</button>
+      <button type="button" class="nav-item" data-panel="plan-snapshot">人员/费用/业务模式</button>
+      <button type="button" class="nav-item" data-panel="aeo">AEO 与信用</button>
+      <button type="button" class="nav-item" data-panel="overseas">海外工厂通关</button>
+      <button type="button" class="nav-item" data-panel="china">中国合规与查验 · 合规扫描</button>
+      <button type="button" class="nav-item" data-panel="volume">子公司票数与金额</button>
+
+      <div class="nav-section">原型说明</div>
+      <p style="font-size:11px;color:var(--muted);line-height:1.45;margin:0;">
+        「今日需求量 / AI 智能处理量 / 人工待办量」与智能协作工作台总览口径一致；正式环境由同一 API 汇总。
+      </p>
+    </aside>
+
+    <div class="main">
+      <div class="topbar">
+        <div>
+          <h1 id="pageTitle">总览与红线 · 目标达成</h1>
+          <div class="topbar-sub">
+            <p class="topbar-meta" id="reportPeriodLine" style="margin:0;">报告期：—</p>
+            <div class="period-picker" role="group" aria-label="报告期年月">
+              <span class="period-label">年月</span>
+              <select id="periodYear" aria-label="选择年份"></select>
+              <span class="period-sep">年</span>
+              <select id="periodMonth" aria-label="选择月份"></select>
+              <span class="period-sep">月</span>
+            </div>
+          </div>
+        </div>
+        <div class="pill-row">
+          <span class="pill"><strong>口径</strong> 海关统计货值 / 申报票数</span>
+          <span class="pill"><strong>币种</strong> 展示人民币 · 原币附注</span>
+          <a class="pill" href="customs-intelligent-workbench-v2-integrated.html" style="text-decoration:none;color:inherit;"><strong>协作</strong> 跳转智能工作台</a>
+        </div>
+      </div>
+
+      <!-- 总览与目标达成（同页） -->
+      <section id="panel-exec" class="panel active">
+        <!-- ① 红线 -->
+        <div class="alert-strip">
+          <div class="alert-card ok">
+            <div class="label">稽核 / 稽查 · 处罚</div>
+            <div class="val">本月无新增处罚</div>
+            <div class="hint">在办稽查 1 起（加工贸易手册 · 华东子公司），尚无结论性补税/罚款。</div>
+          </div>
+          <div class="alert-card ok">
+            <div class="label">AEO 降级 / 暂停</div>
+            <div class="val">无</div>
+            <div class="hint">3 家高级认证主体状态正常；1 家年审材料筹备中。</div>
+          </div>
+          <div class="alert-card warn">
+            <div class="label">海外通关情况</div>
+            <div class="val">印度工厂通关滞后</div>
+            <div class="hint">进口及时率 88.7%，低于目标 90%，主因化验与单证补件。</div>
+          </div>
+        </div>
+
+        <!-- ② 经营体量 -->
+        <div class="block-title">经营体量与通关 KPI</div>
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="k-label">集团进出口金额（本月）</div>
+            <div class="k-num">¥4.28<span class="k-unit">亿</span></div>
+            <div class="k-delta up">同比 +6.8%</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">报关单票数（集团）</div>
+            <div class="k-num">3,842<span class="k-unit">票</span></div>
+            <div class="k-delta up">同比 +3.1%</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">集团查验率</div>
+            <div class="k-num">4.2<span class="k-unit">%</span></div>
+            <div class="k-delta down">同比 +0.4pt</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">中国申报合规准确率</div>
+            <div class="k-num">97.6<span class="k-unit">%</span></div>
+            <div class="k-delta flat">环比 −0.2pt</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">关务归口费用（本月）</div>
+            <div class="k-num">¥486<span class="k-unit">万</span></div>
+            <div class="k-delta up">同比 +4.2%</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">海外工厂进口及时率（加权）</div>
+            <div class="k-num">91.0<span class="k-unit">%</span></div>
+            <div class="k-delta flat">目标 92%</div>
+          </div>
+        </div>
+
+        <!-- ③ 人效/合规/目标达成 -->
+        <div class="block-title">人效/合规/目标达成</div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>维度</th>
+                <th>指标</th>
+                <th>定义 / 口径</th>
+                <th>月度目标</th>
+                <th>本月实际</th>
+                <th>达成</th>
+                <th>下钻呈现</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td rowspan="3"><strong>人效</strong></td>
+                <td>人均申报处理量</td>
+                <td>集团报关相关工单 ÷ 关务专职 FTE</td>
+                <td>≥ 8.5 票/人·月</td>
+                <td>9.4</td>
+                <td><span class="badge b-ok">110%</span></td>
+                <td>本页 KPI + 「人力与智能协作」</td>
+              </tr>
+              <tr>
+                <td>AI 闭环率</td>
+                <td>SKILL 已闭环 ÷ 平台总需求</td>
+                <td>≥ 48%</td>
+                <td>51.4%</td>
+                <td><span class="badge b-ok">107%</span></td>
+                <td>智能工作台总览 + 日志</td>
+              </tr>
+              <tr>
+                <td>申报前检查覆盖率</td>
+                <td>触发预审规则 / 应覆盖高风险票数</td>
+                <td>≥ 85%</td>
+                <td>70%</td>
+                <td><span class="badge b-risk">82%</span></td>
+                <td>工作台 KPI 条 · 红黄队列</td>
+              </tr>
+              <tr>
+                <td rowspan="3"><strong>合规</strong></td>
+                <td>一次申报合规准确率</td>
+                <td>1 − 差错次数/申报次数（中国）</td>
+                <td>≥ 97.5%</td>
+                <td>97.6%</td>
+                <td><span class="badge b-ok">达标</span></td>
+                <td>「中国合规与查验」</td>
+              </tr>
+              <tr>
+                <td>重大合规事件</td>
+                <td>处罚/降级/制裁红档逾期未关</td>
+                <td>0</td>
+                <td>0</td>
+                <td><span class="badge b-ok">达标</span></td>
+                <td>本页红线卡片 + 「合规扫描」</td>
+              </tr>
+              <tr>
+                <td>筛查工单关闭周期</td>
+                <td>中高风险扫描平均结案天数</td>
+                <td>≤ 7 天</td>
+                <td>5.2 天</td>
+                <td><span class="badge b-ok">达标</span></td>
+                <td>合规模块 SLA 报表</td>
+              </tr>
+              <tr>
+                <td rowspan="3"><strong>目标达成</strong></td>
+                <td>海外进口及时率（加权）</td>
+                <td>各基地 SLA 内放行占比</td>
+                <td>≥ 92%</td>
+                <td>91.0%</td>
+                <td><span class="badge b-warn">99%</span></td>
+                <td>「海外工厂通关」· 一单到底</td>
+              </tr>
+              <tr>
+                <td>费用预算执行偏差</td>
+                <td>|实际−预算|/预算（当月关务费）</td>
+                <td>≤ ±5%</td>
+                <td>−2.9%</td>
+                <td><span class="badge b-ok">达标</span></td>
+                <td>「人员/费用/业务模式」</td>
+              </tr>
+              <tr>
+                <td>编制执行率</td>
+                <td>在岗+顶岗等效 / 核定编制</td>
+                <td>95%–102%</td>
+                <td>97.3%</td>
+                <td><span class="badge b-ok">区间內</span></td>
+                <td>「人员编制预算」+ HR</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ⑤ 经营摘要 -->
+        <div class="block-title">经营摘要（可导出 PDF 贴入经营会）</div>
+        <div class="table-wrap" style="padding:16px;font-size:13px;line-height:1.55;color:var(--muted);">
+          <p style="margin:0;color:var(--text);font-weight:600;">本月全球通关态势平稳，监管红线未突破；进出口金额同比增长主要系海外基地投产拉动料件进口。查验率略有抬头，与重点口岸抽核政策相关；关务费用增速低于货值增速。目标达成方面：人效与合规整体达标，<strong>申报前检查覆盖率</strong>与<strong>海外及时率</strong>仍低于目标需督办。合规扫描累计待关闭工单 23 件，无制裁类红档逾期未结。</p>
+        </div>
+
+        <!-- ⑥ 系统呈现要点 -->
+        <div class="block-title">本页信息架构（产品化要点）</div>
+        <div class="table-wrap" style="padding:16px 18px;font-size:12px;color:var(--muted);line-height:1.65;">
+          <ul class="risk-list" style="margin:0;">
+            <li><strong style="color:var(--text);">自上而下阅读：</strong>红线 → 体量 KPI → 人效/合规/目标达成表 → 摘要；一屏 Story 完整。</li>
+            <li><strong style="color:var(--text);">同一事实源：</strong>CMS/TCS、财务、HR、工作台日志汇至本页，与左侧导航下钻页一致。</li>
+            <li><strong style="color:var(--text);">预警闭环：</strong>「达成」标红项自动生成督办，状态回写后在本表更新。</li>
+            <li><strong style="color:var(--text);">与供应链握手：</strong>可对接 OTIF/S&amp;OP，将清关延误映射到料到产线窗口。</li>
+          </ul>
+        </div>
+        <footer class="note">人效/合规/目标类指标权重可按战略调整；正式环境以财务与海关统计口径备案为准。</footer>
+      </section>
+
+      <!-- 人力与智能协作（与工作台联动） -->
+      <section id="panel-workforce" class="panel">
+        <p class="link-mini">本页数据与 <a href="customs-intelligent-workbench-v2-integrated.html" style="color:var(--accent);">关务智能协作工作台</a> 总览「今日需求量 / AI 智能处理量 / 人工待办量」同源汇总（以下为示意值）。</p>
+
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="k-label">关务专职 FTE（集团）</div>
+            <div class="k-num">48<span class="k-unit">人</span></div>
+            <div class="k-delta flat">编制内进出口 + 加贸 + 归类 + 合规</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">海外本地关务 / 代理对口</div>
+            <div class="k-num">12<span class="k-unit">人</span></div>
+            <div class="k-delta flat">美 / 印 / 荷 / 海外厂等</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">平台总需求量（本月累计 · 示意）</div>
+            <div class="k-num">451<span class="k-unit">票</span></div>
+            <div class="k-delta flat">与各子工作台 demand 合计一致</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">AI 智能闭环（SKILL）</div>
+            <div class="k-num">232<span class="k-unit">票</span></div>
+            <div class="k-delta up">占总量 51.4%</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">人工待办</div>
+            <div class="k-num">219<span class="k-unit">票</span></div>
+            <div class="k-delta flat">占总量 48.6%</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">人均平台单量（FTE）</div>
+            <div class="k-num">9.4<span class="k-unit">票/人</span></div>
+            <div class="k-delta flat">451 ÷ 48（示意）</div>
+          </div>
+        </div>
+
+        <div class="block-title">AI 与人工结构（占总量）</div>
+        <div class="split-wrap">
+          <div class="split-bar" title="AI 与人工占比">
+            <div class="split-ai" style="width:51.4%">AI 51.4%</div>
+            <div class="split-manual" style="width:48.6%">人工 48.6%</div>
+          </div>
+          <p class="topbar-meta" style="margin-top:10px;">AI 闭环率 = AI 处理量 ÷ 总需求量；人工占比 = 人工待办 ÷ 总需求量；与智能协作总览 KPI 条（需求解析命中率、归类采纳率等）交叉解读。</p>
+        </div>
+
+        <div class="block-title">智能协作执行状态（与工作台总览一致 · 示意）</div>
+        <div class="table-wrap" style="padding:14px 16px;">
+          <div style="display:grid;gap:8px;font-size:12px;">
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:6px;"><span style="color:var(--muted);">需求解析命中率</span><span style="font-weight:700;">92%</span></div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:6px;"><span style="color:var(--muted);">归类建议采纳率</span><span style="font-weight:700;">95%</span></div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:6px;"><span style="color:var(--muted);">单证预审规则触达率</span><span style="font-weight:700;">78%</span></div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:6px;"><span style="color:var(--muted);">申报前检查覆盖</span><span style="font-weight:700;">70%</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">海外清关及时率（四台汇总）</span><span style="font-weight:700;">91%</span></div>
+          </div>
+        </div>
+
+        <div class="block-title">人机协同潜在风险（关务管理视角）</div>
+        <div class="table-wrap" style="padding:16px 18px;">
+          <ul class="risk-list">
+            <li><strong style="color:var(--text);">责任与合规：</strong>高风险场景（两用、制裁、审价）若未强制人工签核，AI 采纳率易与真实合规脱节。</li>
+            <li><strong style="color:var(--text);">主数据：</strong>HS/原产/BOM 错误会被 AI 放大；申报前检查覆盖偏低（示意 70%）时，差错率与堆存风险上升。</li>
+            <li><strong style="color:var(--text);">规则漂移：</strong>税则与监管条件变更后，规则未及时同步将导致「自动错得快」。</li>
+            <li><strong style="color:var(--text);">产能：</strong>人工待办占比高时，例外与稽核堆积在少数专家，关键人依赖与 SLA 恶化。</li>
+            <li><strong style="color:var(--text);">海外：</strong>海外清关及时率与 AI 处理量部分解耦（化验、代理回执、口岸政策），需单独盯里程碑。</li>
+            <li><strong style="color:var(--text);">审计 / AEO：</strong>自动化日志、改单记录、复核轨迹需可追溯，不能仅展示占比。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 人员/费用/业务模式：编制与清单 + 关务归口费用示意（可编辑 · 本机保存） -->
+      <section id="panel-plan-snapshot" class="panel">
+        <p class="link-mini">与顶栏「报告期」联动（示意）。本页 <strong>人员编制、费用预算、业务模式（子公司）清单</strong>及<strong>关务部归口费用结构</strong>示意；清单支持编辑后<strong>保存至本机浏览器</strong>（localStorage）。「人效 / 合规 / 目标达成」与<strong style="color:var(--text);">首页「总览与红线 · 目标达成」</strong>可对账。正式生产请对接后端 API。</p>
+        <div class="plan-toolbar" style="margin-bottom:14px;">
+          <button type="button" class="btn-plan btn-plan-primary" id="btnPlanSnapshotSave">保存（本机）</button>
+          <button type="button" class="btn-plan" id="btnPlanSnapshotReset">清除本机数据</button>
+          <span class="topbar-meta" id="planSnapshotSaveMsg" style="margin:0;"></span>
+        </div>
+
+        <div class="block-title">人员编制预算</div>
+        <div class="plan-toolbar">
+          <span class="topbar-meta" style="margin:0;">财年编制（示意 2026）· 明细行前 5 行编辑后，<strong>合计行人数/FTE 自动汇总</strong>（可再手工改合计行）</span>
+        </div>
+        <p class="topbar-meta" style="margin:-4px 0 10px;">含关务部专职 FTE，不含外包与海外当地代理编制。</p>
+        <div class="table-wrap">
+          <table class="data" id="staffBudgetTable">
+            <thead>
+              <tr>
+                <th>人员岗位</th>
+                <th>职能条线 / 组织域</th>
+                <th>年度编制（FTE）</th>
+                <th>在岗人数</th>
+                <th>本月预算编制 · 占用</th>
+                <th>编控差异</th>
+                <th>说明</th>
+              </tr>
+            </thead>
+            <tbody id="staffBudgetBody">
+              <tr class="staff-data-row">
+                <td contenteditable="true" class="cell-edit">进出口经理 / 协调</td>
+                <td contenteditable="true" class="cell-edit">中国进口 / 税赋协同</td>
+                <td contenteditable="true" class="cell-edit">14</td>
+                <td contenteditable="true" class="cell-edit">13</td>
+                <td contenteditable="true" class="cell-edit">13.2</td>
+                <td contenteditable="true" class="cell-edit">−0.8</td>
+                <td contenteditable="true" class="cell-edit">含内勤复核岗，1 人产假顶岗中</td>
+              </tr>
+              <tr class="staff-data-row">
+                <td contenteditable="true" class="cell-edit">出口 / 制单主管</td>
+                <td contenteditable="true" class="cell-edit">中国出口 / 部件整机</td>
+                <td contenteditable="true" class="cell-edit">11</td>
+                <td contenteditable="true" class="cell-edit">11</td>
+                <td contenteditable="true" class="cell-edit">11.0</td>
+                <td contenteditable="true" class="cell-edit">持平</td>
+                <td contenteditable="true" class="cell-edit">与广州视琨等出口初始单峰值对齐编制</td>
+              </tr>
+              <tr class="staff-data-row">
+                <td contenteditable="true" class="cell-edit">加贸 / 核销专员</td>
+                <td contenteditable="true" class="cell-edit">加工贸易 / 账务平衡</td>
+                <td contenteditable="true" class="cell-edit">8</td>
+                <td contenteditable="true" class="cell-edit">7</td>
+                <td contenteditable="true" class="cell-edit">7.5</td>
+                <td contenteditable="true" class="cell-edit">+0.5</td>
+                <td contenteditable="true" class="cell-edit">手册核销季临时借用 0.5FTE</td>
+              </tr>
+              <tr class="staff-data-row">
+                <td contenteditable="true" class="cell-edit">海外关务接口</td>
+                <td contenteditable="true" class="cell-edit">海外对口 / 代理管理</td>
+                <td contenteditable="true" class="cell-edit">6</td>
+                <td contenteditable="true" class="cell-edit">6</td>
+                <td contenteditable="true" class="cell-edit">6.0</td>
+                <td contenteditable="true" class="cell-edit">持平</td>
+                <td contenteditable="true" class="cell-edit">不含当地代理外包人头</td>
+              </tr>
+              <tr class="staff-data-row">
+                <td contenteditable="true" class="cell-edit">归类 / 合规工程师</td>
+                <td contenteditable="true" class="cell-edit">归类 / 合规 / AEO</td>
+                <td contenteditable="true" class="cell-edit">9</td>
+                <td contenteditable="true" class="cell-edit">9</td>
+                <td contenteditable="true" class="cell-edit">9.0</td>
+                <td contenteditable="true" class="cell-edit">持平</td>
+                <td contenteditable="true" class="cell-edit">含物项与稽查应对专员编制</td>
+              </tr>
+              <tr id="staffTotalRow" style="font-weight:700;background:rgba(59,130,246,0.08);">
+                <td contenteditable="true" class="cell-edit">—</td>
+                <td contenteditable="true" class="cell-edit">集团关务编制合计</td>
+                <td contenteditable="true" class="cell-edit">48</td>
+                <td contenteditable="true" class="cell-edit">46</td>
+                <td contenteditable="true" class="cell-edit">46.7</td>
+                <td contenteditable="true" class="cell-edit">−1.3 FTE 缺口</td>
+                <td contenteditable="true" class="cell-edit">与「人力与智能协作」总 FTE 可对账；缺口以 AI 与加班消化</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="block-title">费用预算</div>
+        <div class="fee-budget-strip-wrap">
+          <div class="fee-budget-strip-label">预算</div>
+          <div class="fee-budget-strip fee-budget-strip--budget">
+            <div class="budget-mod">
+              <div class="bm-title">整机 · 年度预算（万元）</div>
+              <div class="bm-hint">整机出口通关报检、证书、口岸费用等（口径可自定）</div>
+              <input type="number" class="plan-input budget-seg-input" id="budgetAnnualMachine" value="1850" min="0" step="1" aria-label="整机年度预算万元" />
+            </div>
+            <div class="budget-mod">
+              <div class="bm-title">部件 · 年度预算（万元）</div>
+              <div class="bm-hint">部件/料件进出口、协定享惠相关费用</div>
+              <input type="number" class="plan-input budget-seg-input" id="budgetAnnualParts" value="2100" min="0" step="1" aria-label="部件年度预算万元" />
+            </div>
+            <div class="budget-mod">
+              <div class="bm-title">海外 · 年度预算（万元）</div>
+              <div class="bm-hint">海外子公司/工厂当地清关、代理、合规咨询</div>
+              <input type="number" class="plan-input budget-seg-input" id="budgetAnnualOverseas" value="1870" min="0" step="1" aria-label="海外年度预算万元" />
+            </div>
+            <div class="kpi kpi--fee-total">
+              <div class="k-label">关务费用年度预算（集团 · 合计）</div>
+              <div class="k-num" id="feeAnnualTotalDisplay">¥5,820<span class="k-unit">万</span></div>
+              <div class="k-delta flat">= 整机 + 部件 + 海外（联动）</div>
+            </div>
+          </div>
+        </div>
+        <div class="fee-budget-strip-wrap">
+          <div class="fee-budget-strip-label">实际发生</div>
+          <p class="topbar-meta" style="margin:-2px 0 8px;">按<strong style="color:var(--text);">口径自洽</strong>填报（建议与下方明细「正常 / 异常费用」行勾稽）。</p>
+          <div class="fee-budget-strip fee-budget-strip--actual">
+            <div class="kpi">
+              <div class="k-label">本年 1—本月累计执行</div>
+              <div id="feeKpiYtdBlock" class="k-num cell-edit" contenteditable="true" style="font-size:24px;font-weight:800;padding:4px 0;">¥1,268<span class="k-unit">万</span></div>
+              <div id="feeKpiYtdSubBlock" class="k-delta flat cell-edit" contenteditable="true">执行率 21.8%（示意）</div>
+            </div>
+            <div class="kpi">
+              <div class="k-label">本月预算额 / 实际</div>
+              <div id="feeKpiMonthBlock" class="k-num cell-edit" contenteditable="true" style="font-size:24px;font-weight:800;padding:4px 0;">486 / 472<span class="k-unit">万</span></div>
+              <div id="feeKpiMonthSubBlock" class="k-delta up cell-edit" contenteditable="true">较预算 −2.9%</div>
+            </div>
+            <div class="budget-mod fee-act-mod fee-act-mod--normal">
+              <div class="bm-title">正常费用 · 实际发生（万元）</div>
+              <div class="bm-hint">不含处罚、滞纳金等异常口径。</div>
+              <input type="number" class="plan-input fee-act-input" id="feeActualNormal" value="1240" min="0" step="0.01" aria-label="正常费用实际发生万元" />
+            </div>
+            <div class="budget-mod fee-act-mod fee-act-mod--abnormal">
+              <div class="bm-title">异常费用 · 金额（万元）</div>
+              <div class="bm-hint">处罚、滞纳金、补税、争议赔款等。</div>
+              <input type="number" class="plan-input fee-act-input" id="feeActualAbnormal" value="28" min="0" step="0.01" aria-label="异常费用金额万元" />
+            </div>
+          </div>
+          <p class="topbar-meta" id="feeActSplitHint" style="margin:8px 0 14px;">正常 + 异常合计：<strong id="feeActSplitSum" style="color:var(--text);">1,268</strong> 万元（可与同行「本年累计执行」对账）</p>
+        </div>
+
+        <div class="block-title" style="margin-top:20px;">关务部归口费用（本月示意）</div>
+        <div class="kpi-grid" style="margin-bottom:16px;">
+          <div class="kpi">
+            <div class="k-label">费用合计</div>
+            <div class="k-num">¥486<span class="k-unit">万</span></div>
+            <div class="k-delta flat">占货值约 11.4 bp</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">代理报关及输单</div>
+            <div class="k-num">¥198<span class="k-unit">万</span></div>
+            <div class="k-delta flat">41%</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">检测 / 鉴定 / 熏蒸</div>
+            <div class="k-num">¥76<span class="k-unit">万</span></div>
+            <div class="k-delta flat">16%</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">港杂 / 堆存 / 滞报类</div>
+            <div class="k-num">¥124<span class="k-unit">万</span></div>
+            <div class="k-delta warn" style="color:var(--warn);">异常费环比 +18%</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">咨询 / 稽查应对 / 系统</div>
+            <div class="k-num">¥88<span class="k-unit">万</span></div>
+            <div class="k-delta flat">18%</div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data" id="feeBudgetDetailTable">
+            <thead>
+              <tr>
+                <th>类别</th>
+                <th>费用大类</th>
+                <th>年度预算（万元）</th>
+                <th>本月预算</th>
+                <th>本月实际</th>
+                <th>YTD 执行率</th>
+                <th>预警</th>
+              </tr>
+            </thead>
+            <tbody id="feeBudgetDetailBody">
+              <tr class="fee-data-row">
+                <td>
+                  <select class="plan-select fee-cat-select" aria-label="费用类别">
+                    <option value="normal" selected>正常费用</option>
+                    <option value="abnormal">异常费用</option>
+                  </select>
+                </td>
+                <td contenteditable="true" class="cell-edit">报关服务费 / 口岸杂费</td>
+                <td contenteditable="true" class="cell-edit">3,100</td>
+                <td contenteditable="true" class="cell-edit">255</td>
+                <td contenteditable="true" class="cell-edit">248</td>
+                <td contenteditable="true" class="cell-edit">22%</td>
+                <td contenteditable="true" class="cell-edit">绿</td>
+              </tr>
+              <tr class="fee-data-row">
+                <td>
+                  <select class="plan-select fee-cat-select">
+                    <option value="normal" selected>正常费用</option>
+                    <option value="abnormal">异常费用</option>
+                  </select>
+                </td>
+                <td contenteditable="true" class="cell-edit">检测 / 化验 / 鉴定</td>
+                <td contenteditable="true" class="cell-edit">980</td>
+                <td contenteditable="true" class="cell-edit">86</td>
+                <td contenteditable="true" class="cell-edit">91</td>
+                <td contenteditable="true" class="cell-edit">19%</td>
+                <td contenteditable="true" class="cell-edit">本月光单略超</td>
+              </tr>
+              <tr class="fee-data-row">
+                <td>
+                  <select class="plan-select fee-cat-select">
+                    <option value="normal" selected>正常费用</option>
+                    <option value="abnormal">异常费用</option>
+                  </select>
+                </td>
+                <td contenteditable="true" class="cell-edit">保税仓租 / 港建 / 滞箱</td>
+                <td contenteditable="true" class="cell-edit">720</td>
+                <td contenteditable="true" class="cell-edit">62</td>
+                <td contenteditable="true" class="cell-edit">58</td>
+                <td contenteditable="true" class="cell-edit">23%</td>
+                <td contenteditable="true" class="cell-edit">绿</td>
+              </tr>
+              <tr class="fee-data-row">
+                <td>
+                  <select class="plan-select fee-cat-select">
+                    <option value="normal" selected>正常费用</option>
+                    <option value="abnormal">异常费用</option>
+                  </select>
+                </td>
+                <td contenteditable="true" class="cell-edit">顾问咨询 / 稽查应对 / 系统订阅</td>
+                <td contenteditable="true" class="cell-edit">620</td>
+                <td contenteditable="true" class="cell-edit">52</td>
+                <td contenteditable="true" class="cell-edit">48</td>
+                <td contenteditable="true" class="cell-edit">20%</td>
+                <td contenteditable="true" class="cell-edit">绿</td>
+              </tr>
+              <tr class="fee-data-row">
+                <td>
+                  <select class="plan-select fee-cat-select">
+                    <option value="normal" selected>正常费用</option>
+                    <option value="abnormal">异常费用</option>
+                  </select>
+                </td>
+                <td contenteditable="true" class="cell-edit">海外在地通关与代理（可拆原币）</td>
+                <td contenteditable="true" class="cell-edit">400</td>
+                <td contenteditable="true" class="cell-edit">31</td>
+                <td contenteditable="true" class="cell-edit">27</td>
+                <td contenteditable="true" class="cell-edit">18%</td>
+                <td contenteditable="true" class="cell-edit">绿</td>
+              </tr>
+              <tr class="fee-data-row">
+                <td>
+                  <select class="plan-select fee-cat-select">
+                    <option value="normal">正常费用</option>
+                    <option value="abnormal" selected>异常费用</option>
+                  </select>
+                </td>
+                <td contenteditable="true" class="cell-edit">海关处罚 / 滞纳金 / 补税（示例）</td>
+                <td contenteditable="true" class="cell-edit">0</td>
+                <td contenteditable="true" class="cell-edit">0</td>
+                <td contenteditable="true" class="cell-edit">0</td>
+                <td contenteditable="true" class="cell-edit">—</td>
+                <td contenteditable="true" class="cell-edit">无则填 0</td>
+              </tr>
+              <tr id="feeBudgetTotalRow" style="font-weight:700;background:rgba(59,130,246,0.12);">
+                <td colspan="2" contenteditable="false">合计（自动汇总）</td>
+                <td id="feeDetailSumAnnual" contenteditable="false" style="cursor:default;opacity:0.95;"></td>
+                <td id="feeDetailSumMonthBud" contenteditable="false" style="cursor:default;opacity:0.95;"></td>
+                <td id="feeDetailSumMonthAct" contenteditable="false" style="cursor:default;opacity:0.95;"></td>
+                <td id="feeDetailSumYtd" contenteditable="false" colspan="2" style="color:var(--muted);font-size:11px;">YTD/预警列不汇总</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="block-title" style="margin-top:8px;">现子公司进出口业务清单</div>
+        <p class="topbar-meta" style="margin:0 0 10px;">单元格可编辑；下载 CSV 模板后按列填写，再导入（UTF-8，字段请勿含英文逗号或整表用 Excel 另存 CSV UTF-8）。</p>
+        <div class="plan-toolbar">
+          <button type="button" class="btn-plan btn-plan-primary" id="btnDownloadSubsTemplate">下载导入模板（CSV）</button>
+          <label class="btn-plan" style="cursor:pointer;margin:0;">
+            选择文件导入…
+            <input type="file" id="subsidiaryImportFile" class="sr-only-file" accept=".csv,text/csv" />
+          </label>
+          <span class="topbar-meta" id="subsidiaryImportMsg" style="margin:0;"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>子公司 / 常用简称</th>
+                <th>法人全称（脱敏）</th>
+                <th>海关注册编码（示意）</th>
+                <th>进出口形态</th>
+                <th>主要口岸 / 国别</th>
+                <th>年申报量（票·近似）</th>
+                <th>业务状态</th>
+                <th>清单更新</th>
+              </tr>
+            </thead>
+            <tbody id="subsidiaryListBody">
+              <tr>
+                <td contenteditable="true" class="cell-edit">华南制造</td>
+                <td contenteditable="true" class="cell-edit">××（华南）制造有限公司</td>
+                <td contenteditable="true" class="cell-edit">4403××××××××</td>
+                <td contenteditable="true" class="cell-edit">一般贸易 · 加工贸易 · 减免税设备</td>
+                <td contenteditable="true" class="cell-edit">深圳 / 黄埔</td>
+                <td contenteditable="true" class="cell-edit">~16,800</td>
+                <td contenteditable="true" class="cell-edit">在营 · 全量申报</td>
+                <td contenteditable="true" class="cell-edit">当月</td>
+              </tr>
+              <tr>
+                <td contenteditable="true" class="cell-edit">华东电子</td>
+                <td contenteditable="true" class="cell-edit">××电子（昆山）有限公司</td>
+                <td contenteditable="true" class="cell-edit">3225××××××××</td>
+                <td contenteditable="true" class="cell-edit">加工贸易为主 · 部分一般贸易出口</td>
+                <td contenteditable="true" class="cell-edit">上海 / 南京</td>
+                <td contenteditable="true" class="cell-edit">~11,200</td>
+                <td contenteditable="true" class="cell-edit">在营</td>
+                <td contenteditable="true" class="cell-edit">当月</td>
+              </tr>
+              <tr>
+                <td contenteditable="true" class="cell-edit">广州视琨</td>
+                <td contenteditable="true" class="cell-edit">广州视琨科技发展有限公司</td>
+                <td contenteditable="true" class="cell-edit">4401××××××××</td>
+                <td contenteditable="true" class="cell-edit">部件/料件出口 · 协议订单绑定</td>
+                <td contenteditable="true" class="cell-edit">南沙 / 深圳</td>
+                <td contenteditable="true" class="cell-edit">~3,900</td>
+                <td contenteditable="true" class="cell-edit">在营 · 峰值加班</td>
+                <td contenteditable="true" class="cell-edit">当月</td>
+              </tr>
+              <tr>
+                <td contenteditable="true" class="cell-edit">美国子公司</td>
+                <td contenteditable="true" class="cell-edit">×× America Inc.</td>
+                <td contenteditable="true" class="cell-edit">当地 EIN + Entry</td>
+                <td contenteditable="true" class="cell-edit">进口原料 · 成品当地清关</td>
+                <td contenteditable="true" class="cell-edit">美国（洛杉矶 / 长滩）</td>
+                <td contenteditable="true" class="cell-edit">~620</td>
+                <td contenteditable="true" class="cell-edit">在营</td>
+                <td contenteditable="true" class="cell-edit">当月</td>
+              </tr>
+              <tr>
+                <td contenteditable="true" class="cell-edit">印度工厂</td>
+                <td contenteditable="true" class="cell-edit">×× India Pvt Ltd</td>
+                <td contenteditable="true" class="cell-edit">IEC · GSTIN</td>
+                <td contenteditable="true" class="cell-edit">生产设备 / 料件进口</td>
+                <td contenteditable="true" class="cell-edit">印度（Nhava Sheva）</td>
+                <td contenteditable="true" class="cell-edit">~380</td>
+                <td contenteditable="true" class="cell-edit">在营 · 时效承压</td>
+                <td contenteditable="true" class="cell-edit">当月</td>
+              </tr>
+              <tr>
+                <td contenteditable="true" class="cell-edit">荷兰子公司</td>
+                <td contenteditable="true" class="cell-edit">×× EU Operations B.V.</td>
+                <td contenteditable="true" class="cell-edit">NL VAT / EORI</td>
+                <td contenteditable="true" class="cell-edit">欧洲集散 · 转口 / 本地销售</td>
+                <td contenteditable="true" class="cell-edit">荷兰（鹿特丹）</td>
+                <td contenteditable="true" class="cell-edit">~510</td>
+                <td contenteditable="true" class="cell-edit">在营</td>
+                <td contenteditable="true" class="cell-edit">当月</td>
+              </tr>
+              <tr>
+                <td contenteditable="true" class="cell-edit">东南亚加工厂</td>
+                <td contenteditable="true" class="cell-edit">××（越南）加工有限公司</td>
+                <td contenteditable="true" class="cell-edit">登记中</td>
+                <td contenteditable="true" class="cell-edit">来料加工 · 出料深加工</td>
+                <td contenteditable="true" class="cell-edit">越南海防</td>
+                <td contenteditable="true" class="cell-edit">—</td>
+                <td contenteditable="true" class="cell-edit">筹建 → 拟首单</td>
+                <td contenteditable="true" class="cell-edit">当月</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <footer class="note">人员/费用/业务模式（清单与费用示意）为浏览器内编辑；导入 CSV 列顺序须与模板表头一致。正式环境对接 HR/FPM/CMS 持久化。异常费用建议另建处罚/补税台账备查。税金（关税/增值税等）是否列入「关务费用」由集团与财务制度约定；总裁版建议税金单列，避免与行政费用混淆。</footer>
+      </section>
+
+      <!-- AEO -->
+      <section id="panel-aeo" class="panel">
+        <div class="block-title">AEO 高级认证主体一览</div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>法人 / 子公司</th>
+                <th>认证状态</th>
+                <th>本月变化</th>
+                <th>下一关键节点</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>华南制造有限公司</td>
+                <td><span class="badge b-ok">高级认证 · 有效</span></td>
+                <td>维持</td>
+                <td>2027-03 证书到期预警（12 个月内重认排期）</td>
+              </tr>
+              <tr>
+                <td>华东电子有限公司</td>
+                <td><span class="badge b-ok">高级认证 · 有效</span></td>
+                <td>内审发现项 2 条已关闭</td>
+                <td>2026Q2 模拟审核</td>
+              </tr>
+              <tr>
+                <td>广州视琨（示例）</td>
+                <td><span class="badge b-warn">辅导中 → 拟申报</span></td>
+                <td><strong>本月完成差距分析</strong>，目标 Q3 正式申请</td>
+                <td>证据包 V2 提交截止 2026-04-15</td>
+              </tr>
+              <tr>
+                <td>荷兰 EU Ops B.V.</td>
+                <td><span class="badge b-info">欧盟同类资质 · 映射维护</span></td>
+                <td>无降级</td>
+                <td>与集团 AEO 互认资料年度更新</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <footer class="note">说明：「降级」指海关认证状态被取消或下调；总裁表需与证书扫描件、海关公示信息可按月抽核。</footer>
+      </section>
+
+      <!-- 海外 -->
+      <section id="panel-overseas" class="panel">
+        <div class="block-title">海外工厂 · 进口通关及时率</div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>基地 / 法人</th>
+                <th>及时率</th>
+                <th>目标</th>
+                <th>同比</th>
+                <th>主要延误原因</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>美国子公司</td>
+                <td>92.4%</td>
+                <td>95%</td>
+                <td>−1.1pt</td>
+                <td>ATA 到货后清关文件补件、HTS 咨询周期</td>
+              </tr>
+              <tr>
+                <td>印度工厂</td>
+                <td>88.7%</td>
+                <td>90%</td>
+                <td>−0.5pt</td>
+                <td>化工辅料化验、BoE 补料</td>
+              </tr>
+              <tr>
+                <td>荷兰子公司</td>
+                <td>94.1%</td>
+                <td>95%</td>
+                <td>+0.6pt</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td>海外加工厂（东南亚）</td>
+                <td>90.6%</td>
+                <td>92%</td>
+                <td>+1.2pt</td>
+                <td>还柜与加工账册核注衔接</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="topbar-meta" style="margin-top:12px;">口径示例：ATA 起算至海关放行；仅统计已闭合样本。</p>
+      </section>
+
+      <!-- 中国合规与查验 + 合规扫描（合并单页，data-panel=china） -->
+      <section id="panel-china" class="panel">
+        <div class="kpi-grid" style="max-width:720px;">
+          <div class="kpi">
+            <div class="k-label">中国申报合规准确率</div>
+            <div class="k-num">97.6%</div>
+            <div class="k-delta flat">差错 91 次 / 申报 3,762 次</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">中国口岸查验率</div>
+            <div class="k-num">4.5%</div>
+            <div class="k-delta down">同比 +0.5pt</div>
+          </div>
+        </div>
+        <div class="block-title">差错结构 TOP（示意）</div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>类型</th>
+                <th>件数</th>
+                <th>占差错比</th>
+                <th>根因域（摘要）</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>申报要素 / 规格型号</td>
+                <td>32</td>
+                <td>35%</td>
+                <td>工程变更未同步报关行</td>
+              </tr>
+              <tr>
+                <td>HS 与主数据不一致</td>
+                <td>21</td>
+                <td>23%</td>
+                <td>ERP 归并与海关税号映射滞后</td>
+              </tr>
+              <tr>
+                <td>原产 / 享惠</td>
+                <td>18</td>
+                <td>20%</td>
+                <td>供应商证书链更新延迟</td>
+              </tr>
+              <tr>
+                <td>价格 / 分摊</td>
+                <td>12</td>
+                <td>13%</td>
+                <td>特许权与协助费口径</td>
+              </tr>
+              <tr>
+                <td>其他（监管方式、件数毛重等）</td>
+                <td>8</td>
+                <td>9%</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="block-title" style="margin-top:28px;">合规扫描问题 · 分类汇总（本月）</div>
+        <div class="scan-grid" style="margin-bottom:16px;">
+          <div class="scan-card">
+            <div class="sn">制裁 / 禁运名单</div>
+            <div class="big">5</div>
+            <div class="row"><span>待关闭</span><span>1</span></div>
+            <div class="row"><span>已关闭</span><span>4</span></div>
+          </div>
+          <div class="scan-card">
+            <div class="sn">两用 / 出口管制物项</div>
+            <div class="big">12</div>
+            <div class="row"><span>待工程师/法务</span><span>4</span></div>
+            <div class="row"><span>已签发</span><span>8</span></div>
+          </div>
+          <div class="scan-card">
+            <div class="sn">许可证 / 监管条件</div>
+            <div class="big">28</div>
+            <div class="row"><span>冲突待改</span><span>6</span></div>
+            <div class="row"><span>已一致</span><span>22</span></div>
+          </div>
+          <div class="scan-card">
+            <div class="sn">HS / 原产 / 价格预警</div>
+            <div class="big">46</div>
+            <div class="row"><span>待说明</span><span>12</span></div>
+            <div class="row"><span>已归档</span><span>34</span></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>典型问题（脱敏）</th>
+                <th>分类</th>
+                <th>等级</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>物料 M-8821 EC 规则适用性需法务签发</td>
+                <td>物项识别</td>
+                <td><span class="badge b-risk">高</span></td>
+                <td>升级中</td>
+              </tr>
+              <tr>
+                <td>报关单价连续两月超转让定价带宽</td>
+                <td>价格</td>
+                <td><span class="badge b-warn">中</span></td>
+                <td>待说明</td>
+              </tr>
+              <tr>
+                <td>申报 HS 与 ERP 8542.39 冲突，监管条件 B</td>
+                <td>HS</td>
+                <td><span class="badge b-risk">高</span></td>
+                <td>待改单</td>
+              </tr>
+              <tr>
+                <td>供应商国别切换触发 FTA 实质性改变重算</td>
+                <td>原产地</td>
+                <td><span class="badge b-warn">中</span></td>
+                <td>待签</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 业务量 -->
+      <section id="panel-volume" class="panel">
+        <div class="block-title">各子公司报关单票数与进出口金额</div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>子公司 / 法人</th>
+                <th>报关票数</th>
+                <th>同比</th>
+                <th>进出口金额（万人民币）</th>
+                <th>同比</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>华南制造</td>
+                <td>1,420</td>
+                <td><span class="badge b-ok">+2.8%</span></td>
+                <td>15,600</td>
+                <td><span class="badge b-ok">+5.4%</span></td>
+              </tr>
+              <tr>
+                <td>华东电子</td>
+                <td>980</td>
+                <td><span class="badge b-warn">−1.2%</span></td>
+                <td>9,820</td>
+                <td><span class="badge b-ok">+3.1%</span></td>
+              </tr>
+              <tr>
+                <td>华北物流枢纽</td>
+                <td>412</td>
+                <td><span class="badge b-ok">+8.1%</span></td>
+                <td>4,050</td>
+                <td><span class="badge b-ok">+12.0%</span></td>
+              </tr>
+              <tr>
+                <td>美国子公司</td>
+                <td>186</td>
+                <td><span class="badge b-ok">+11.4%</span></td>
+                <td>6,200（USD 折算）</td>
+                <td><span class="badge b-ok">+9.2%</span></td>
+              </tr>
+              <tr>
+                <td>印度工厂</td>
+                <td>142</td>
+                <td><span class="badge b-ok">+6.0%</span></td>
+                <td>3,880</td>
+                <td><span class="badge b-warn">−2.3%</span></td>
+              </tr>
+              <tr>
+                <td>荷兰子公司</td>
+                <td>98</td>
+                <td><span class="badge b-ok">+4.2%</span></td>
+                <td>5,100</td>
+                <td><span class="badge b-ok">+7.8%</span></td>
+              </tr>
+              <tr>
+                <td>其他 / 合并调整</td>
+                <td>604</td>
+                <td>—</td>
+                <td>3,350</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="note">
+        本文件：<code style="color:var(--accent);">customs-operations-analytics-dashboard.html</code>
+        （关务部工作经营分析看板）<br />
+        联动：<code style="color:var(--accent);">customs-intelligent-workbench-v2-integrated.html</code>
+        （关务智能协作工作台）— 总览三带与 KPI 同源示意。
+      </footer>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  var titles = {
+    exec: "总览与红线 · 目标达成",
+    workforce: "人力与智能协作",
+    "plan-snapshot": "人员/费用/业务模式",
+    aeo: "AEO 与信用",
+    overseas: "海外工厂通关",
+    china: "中国合规与查验 · 合规扫描",
+    volume: "子公司票数与金额"
+  };
+
+  document.querySelectorAll(".nav-item").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var id = btn.getAttribute("data-panel");
+      document.querySelectorAll(".nav-item").forEach(function (b) {
+        b.classList.toggle("active", b === btn);
+      });
+      document.querySelectorAll("section.panel").forEach(function (p) {
+        p.classList.toggle("active", p.id === "panel-" + id);
+      });
+      var h = document.getElementById("pageTitle");
+      if (h) h.textContent = titles[id] || id;
+    });
+  });
+
+  function pad2(n) {
+    return n < 10 ? "0" + n : String(n);
+  }
+
+  function initPeriodPicker() {
+    var ySel = document.getElementById("periodYear");
+    var mSel = document.getElementById("periodMonth");
+    var line = document.getElementById("reportPeriodLine");
+    if (!ySel || !mSel || !line) return;
+
+    var now = new Date();
+    var curY = now.getFullYear();
+    var curM = now.getMonth() + 1;
+    var yMin = curY - 4;
+    var yMax = curY + 2;
+    for (var y = yMin; y <= yMax; y++) {
+      var opt = document.createElement("option");
+      opt.value = String(y);
+      opt.textContent = String(y);
+      ySel.appendChild(opt);
+    }
+    ySel.value = String(curY);
+
+    for (var m = 1; m <= 12; m++) {
+      var optM = document.createElement("option");
+      optM.value = pad2(m);
+      optM.textContent = String(m);
+      mSel.appendChild(optM);
+    }
+    mSel.value = pad2(curM);
+
+    function refreshReportPeriodLine() {
+      var y = parseInt(ySel.value, 10);
+      var m = parseInt(mSel.value, 10);
+      line.textContent = "报告期：" + y + " 年 " + m + " 月 · 集团合并 · 全球通关视角";
+    }
+
+    ySel.addEventListener("change", refreshReportPeriodLine);
+    mSel.addEventListener("change", refreshReportPeriodLine);
+    refreshReportPeriodLine();
+  }
+
+  initPeriodPicker();
+
+  function refreshFeeAnnualTotal() {
+    var m = document.getElementById("budgetAnnualMachine");
+    var p = document.getElementById("budgetAnnualParts");
+    var o = document.getElementById("budgetAnnualOverseas");
+    var disp = document.getElementById("feeAnnualTotalDisplay");
+    if (!m || !p || !o || !disp) return;
+    var sum = (parseFloat(m.value) || 0) + (parseFloat(p.value) || 0) + (parseFloat(o.value) || 0);
+    var txt = sum.toLocaleString("zh-CN");
+    disp.innerHTML = "¥" + txt + '<span class="k-unit">万</span>';
+  }
+
+  var PLAN_LS_KEY = "customs_ops_plan_snapshot_v1";
+
+  function parseNumCell(s) {
+    if (s == null) return 0;
+    var t = String(s)
+      .replace(/\u2212/g, "-")
+      .replace(/,/g, "")
+      .replace(/，/g, "");
+    t = t.replace(/[^\d.\-+eE]/g, "").trim();
+    if (!t || t === "-" || t === "+") return 0;
+    var n = parseFloat(t);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function formatStaffSum(n) {
+    var r = Math.round(n * 100) / 100;
+    if (Math.abs(r - Math.round(r)) < 1e-9) return String(Math.round(r));
+    var x = Math.round(r * 10) / 10;
+    return String(x);
+  }
+
+  function recalcStaffTotals() {
+    var body = document.getElementById("staffBudgetBody");
+    var totalRow = document.getElementById("staffTotalRow");
+    if (!body || !totalRow) return;
+    var sumA = 0;
+    var sumO = 0;
+    var sumM = 0;
+    body.querySelectorAll("tr.staff-data-row").forEach(function (tr) {
+      var tds = tr.querySelectorAll("td");
+      if (tds.length < 5) return;
+      sumA += parseNumCell(tds[2].textContent);
+      sumO += parseNumCell(tds[3].textContent);
+      sumM += parseNumCell(tds[4].textContent);
+    });
+    var tdsT = totalRow.querySelectorAll("td");
+    if (tdsT.length >= 5) {
+      tdsT[2].textContent = formatStaffSum(sumA);
+      tdsT[3].textContent = formatStaffSum(sumO);
+      tdsT[4].textContent = formatStaffSum(sumM);
+    }
+  }
+
+  function recalcFeeDetailTotals() {
+    var body = document.getElementById("feeBudgetDetailBody");
+    var a = document.getElementById("feeDetailSumAnnual");
+    var b = document.getElementById("feeDetailSumMonthBud");
+    var c = document.getElementById("feeDetailSumMonthAct");
+    if (!body || !a || !b || !c) return;
+    var sumA = 0;
+    var sumB = 0;
+    var sumC = 0;
+    body.querySelectorAll("tr.fee-data-row").forEach(function (tr) {
+      var tds = tr.querySelectorAll("td");
+      if (tds.length < 5) return;
+      sumA += parseNumCell(tds[2].textContent);
+      sumB += parseNumCell(tds[3].textContent);
+      sumC += parseNumCell(tds[4].textContent);
+    });
+    a.textContent = sumA.toLocaleString("zh-CN");
+    b.textContent = sumB.toLocaleString("zh-CN");
+    c.textContent = sumC.toLocaleString("zh-CN");
+  }
+
+  function refreshFeeActSplitSum() {
+    var n = document.getElementById("feeActualNormal");
+    var a = document.getElementById("feeActualAbnormal");
+    var sumEl = document.getElementById("feeActSplitSum");
+    if (!n || !a || !sumEl) return;
+    var sum = (parseFloat(n.value) || 0) + (parseFloat(a.value) || 0);
+    sumEl.textContent = sum.toLocaleString("zh-CN");
+  }
+
+  function recalcPlanSnapshotTotals() {
+    recalcStaffTotals();
+    recalcFeeDetailTotals();
+    refreshFeeAnnualTotal();
+    refreshFeeActSplitSum();
+  }
+
+  function serializePlanSnapshot() {
+    var data = { v: 1 };
+    [
+      "budgetAnnualMachine",
+      "budgetAnnualParts",
+      "budgetAnnualOverseas",
+      "feeActualNormal",
+      "feeActualAbnormal"
+    ].forEach(function (id) {
+      var el = document.getElementById(id);
+      data[id] = el ? el.value : "";
+    });
+    function blk(id) {
+      var el = document.getElementById(id);
+      return el ? el.innerHTML : "";
+    }
+    data.feeKpiYtdBlock = blk("feeKpiYtdBlock");
+    data.feeKpiYtdSubBlock = blk("feeKpiYtdSubBlock");
+    data.feeKpiMonthBlock = blk("feeKpiMonthBlock");
+    data.feeKpiMonthSubBlock = blk("feeKpiMonthSubBlock");
+
+    data.staffRows = [];
+    document.querySelectorAll("#staffBudgetBody tr").forEach(function (tr) {
+      var cells = [];
+      tr.querySelectorAll("td").forEach(function (td) {
+        cells.push(td.textContent);
+      });
+      data.staffRows.push({
+        isTotal: tr.id === "staffTotalRow",
+        cells: cells
+      });
+    });
+
+    data.feeRows = [];
+    document.querySelectorAll("#feeBudgetDetailBody tr.fee-data-row").forEach(function (tr) {
+      var sel = tr.querySelector("select.fee-cat-select");
+      var tds = tr.querySelectorAll("td");
+      var texts = [];
+      for (var i = 1; i < tds.length; i++) {
+        texts.push(tds[i].textContent);
+      }
+      data.feeRows.push({ cat: sel ? sel.value : "normal", cells: texts });
+    });
+
+    data.subsidiaryRows = [];
+    document.querySelectorAll("#subsidiaryListBody tr").forEach(function (tr) {
+      var row = [];
+      tr.querySelectorAll("td").forEach(function (td) {
+        row.push(td.textContent);
+      });
+      data.subsidiaryRows.push(row);
+    });
+    return data;
+  }
+
+  function restoreStaffFromSaved(rows) {
+    var body = document.getElementById("staffBudgetBody");
+    if (!body || !rows || !rows.length) return;
+    body.innerHTML = "";
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      if (r.isTotal) {
+        tr.id = "staffTotalRow";
+        tr.style.cssText = "font-weight:700;background:rgba(59,130,246,0.08);";
+      } else {
+        tr.className = "staff-data-row";
+      }
+      (r.cells || []).forEach(function (text) {
+        var td = document.createElement("td");
+        td.contentEditable = "true";
+        td.className = "cell-edit";
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+  }
+
+  function restoreFeeRowsFromSaved(rows) {
+    var tb = document.getElementById("feeBudgetDetailBody");
+    var totalRow = document.getElementById("feeBudgetTotalRow");
+    if (!tb || !totalRow) return;
+    tb.querySelectorAll("tr.fee-data-row").forEach(function (tr) {
+      tr.remove();
+    });
+    (rows || []).forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.className = "fee-data-row";
+      var td0 = document.createElement("td");
+      var sel = document.createElement("select");
+      sel.className = "plan-select fee-cat-select";
+      sel.setAttribute("aria-label", "费用类别");
+      sel.innerHTML =
+        '<option value="normal">正常费用</option><option value="abnormal">异常费用</option>';
+      sel.value = r.cat === "abnormal" ? "abnormal" : "normal";
+      td0.appendChild(sel);
+      tr.appendChild(td0);
+      (r.cells || []).forEach(function (text) {
+        var td = document.createElement("td");
+        td.contentEditable = "true";
+        td.className = "cell-edit";
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      tb.insertBefore(tr, totalRow);
+    });
+  }
+
+  function restoreSubsidiaryRows(matrix) {
+    var tb = document.getElementById("subsidiaryListBody");
+    if (!tb || !matrix) return;
+    tb.innerHTML = "";
+    matrix.forEach(function (row) {
+      var tr = document.createElement("tr");
+      var cols = row && row.length ? row : [];
+      for (var j = 0; j < 8; j++) {
+        var td = document.createElement("td");
+        td.contentEditable = "true";
+        td.className = "cell-edit";
+        td.textContent = (cols[j] != null ? String(cols[j]) : "").trim();
+        tr.appendChild(td);
+      }
+      tb.appendChild(tr);
+    });
+  }
+
+  function applyPlanSnapshot(data) {
+    if (!data || data.v !== 1) return;
+    [
+      "budgetAnnualMachine",
+      "budgetAnnualParts",
+      "budgetAnnualOverseas",
+      "feeActualNormal",
+      "feeActualAbnormal"
+    ].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && data[id] != null && data[id] !== "") el.value = String(data[id]);
+    });
+    function setBlk(id, html) {
+      var el = document.getElementById(id);
+      if (el && html != null) el.innerHTML = html;
+    }
+    setBlk("feeKpiYtdBlock", data.feeKpiYtdBlock);
+    setBlk("feeKpiYtdSubBlock", data.feeKpiYtdSubBlock);
+    setBlk("feeKpiMonthBlock", data.feeKpiMonthBlock);
+    setBlk("feeKpiMonthSubBlock", data.feeKpiMonthSubBlock);
+
+    if (data.staffRows && data.staffRows.length) restoreStaffFromSaved(data.staffRows);
+    if (data.feeRows && data.feeRows.length) restoreFeeRowsFromSaved(data.feeRows);
+    if (data.subsidiaryRows && data.subsidiaryRows.length) {
+      restoreSubsidiaryRows(data.subsidiaryRows);
+    }
+  }
+
+  function savePlanSnapshot() {
+    try {
+      localStorage.setItem(PLAN_LS_KEY, JSON.stringify(serializePlanSnapshot()));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function loadPlanSnapshot() {
+    try {
+      var raw = localStorage.getItem(PLAN_LS_KEY);
+      if (!raw) return false;
+      var data = JSON.parse(raw);
+      applyPlanSnapshot(data);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function resetPlanSnapshot() {
+    localStorage.removeItem(PLAN_LS_KEY);
+  }
+
+  function initPlanSnapshotSaveLoad() {
+    var msg = document.getElementById("planSnapshotSaveMsg");
+    var btnS = document.getElementById("btnPlanSnapshotSave");
+    var btnR = document.getElementById("btnPlanSnapshotReset");
+    if (btnS) {
+      btnS.addEventListener("click", function () {
+        if (savePlanSnapshot()) {
+          if (msg) msg.textContent = "已保存至本机浏览器（可随时清除）。";
+        } else {
+          if (msg) msg.textContent = "保存失败（可能超出存储配额）。";
+        }
+      });
+    }
+    if (btnR) {
+      btnR.addEventListener("click", function () {
+        resetPlanSnapshot();
+        if (msg) msg.textContent = "已清除本机数据，请刷新页面恢复默认示意数据。";
+      });
+    }
+
+    var staffBody = document.getElementById("staffBudgetBody");
+    if (staffBody) {
+      staffBody.addEventListener("input", recalcStaffTotals);
+      staffBody.addEventListener(
+        "blur",
+        function (e) {
+          if (e.target && e.target.closest && e.target.closest("#staffBudgetBody")) {
+            recalcStaffTotals();
+          }
+        },
+        true
+      );
+    }
+    var feeBody = document.getElementById("feeBudgetDetailBody");
+    if (feeBody) {
+      feeBody.addEventListener("input", recalcFeeDetailTotals);
+      feeBody.addEventListener("change", function (e) {
+        if (e.target && e.target.classList && e.target.classList.contains("fee-cat-select")) {
+          recalcFeeDetailTotals();
+        }
+      });
+    }
+
+    var loaded = loadPlanSnapshot();
+    refreshFeeAnnualTotal();
+    recalcPlanSnapshotTotals();
+    if (loaded && msg) msg.textContent = "已从本机恢复上次保存的数据。";
+  }
+
+  function initPlanSnapshotBudget() {
+    ["budgetAnnualMachine", "budgetAnnualParts", "budgetAnnualOverseas"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("input", refreshFeeAnnualTotal);
+        el.addEventListener("change", refreshFeeAnnualTotal);
+      }
+    });
+    ["feeActualNormal", "feeActualAbnormal"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("input", refreshFeeActSplitSum);
+        el.addEventListener("change", refreshFeeActSplitSum);
+      }
+    });
+    refreshFeeAnnualTotal();
+    refreshFeeActSplitSum();
+  }
+
+  function parseCsvLine(line) {
+    var out = [];
+    var cur = "";
+    var inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line[i];
+      if (c === '"') {
+        inQ = !inQ;
+        continue;
+      }
+      if (!inQ && c === ",") {
+        out.push(cur);
+        cur = "";
+        continue;
+      }
+      cur += c;
+    }
+    out.push(cur);
+    return out;
+  }
+
+  function initSubsidiaryCsvImport() {
+    var btn = document.getElementById("btnDownloadSubsTemplate");
+    var file = document.getElementById("subsidiaryImportFile");
+    var msg = document.getElementById("subsidiaryImportMsg");
+    if (!btn || !file) return;
+
+    btn.addEventListener("click", function () {
+      var BOM = "\uFEFF";
+      var header =
+        "子公司_常用简称,法人全称,海关注册编码,进出口形态,主要口岸_国别,年申报量_票近似,业务状态,清单更新";
+      var sample =
+        "示例子公司,示例有限公司,4403123456789012,一般贸易,深圳,1000,在营,当月";
+      var blob = new Blob([BOM + header + "\n" + sample + "\n"], {
+        type: "text/csv;charset=utf-8"
+      });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "子公司进出口业务清单_导入模板.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      if (msg) msg.textContent = "已下载模板，请编辑后导入。";
+    });
+
+    file.addEventListener("change", function (ev) {
+      var f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var text = String(reader.result || "").replace(/^\uFEFF/, "");
+        var lines = text.split(/\r?\n/).filter(function (ln) {
+          return ln.trim().length > 0;
+        });
+        if (lines.length < 2) {
+          if (msg) msg.textContent = "文件无数据行。";
+          return;
+        }
+        var dataLines = lines.slice(1);
+        var rows = [];
+        for (var i = 0; i < dataLines.length; i++) {
+          var cols = parseCsvLine(dataLines[i]);
+          while (cols.length < 8) cols.push("");
+          if (cols.length > 8) cols = cols.slice(0, 8);
+          rows.push(cols);
+        }
+        var tb = document.getElementById("subsidiaryListBody");
+        if (!tb) return;
+        tb.innerHTML = "";
+        for (var r = 0; r < rows.length; r++) {
+          var tr = document.createElement("tr");
+          for (var j = 0; j < 8; j++) {
+            var td = document.createElement("td");
+            td.contentEditable = "true";
+            td.className = "cell-edit";
+            td.textContent = (rows[r][j] || "").trim();
+            tr.appendChild(td);
+          }
+          tb.appendChild(tr);
+        }
+        if (msg) msg.textContent = "已导入 " + rows.length + " 行，可继续手工调整。";
+        recalcPlanSnapshotTotals();
+      };
+      reader.readAsText(f, "UTF-8");
+      file.value = "";
+    });
+  }
+
+  initPlanSnapshotSaveLoad();
+  initPlanSnapshotBudget();
+  initSubsidiaryCsvImport();
+})();
+  </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>关务一体化整合门户 · 工作台 / 看板 / 海外 / AEO（原型）</title>
+  <title>关务一体化整合门户 · 工作台 / 看板 / 海外 / AEO / HTS（原型）</title>
   <style>
     :root {
       --bar: #0f172a;
@@ -94,10 +94,23 @@
       inset: 0;
       display: none;
     }
-    .frame-wrap.active { display: block; }
+    .frame-wrap.active { display: flex; flex-direction: column; }
+    .embed-bar {
+      flex-shrink: 0;
+      padding: 6px 12px;
+      background: #1e293b;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .embed-bar a {
+      color: #93c5fd;
+      margin-left: 8px;
+    }
     .frame-wrap iframe {
+      flex: 1;
+      min-height: 0;
       width: 100%;
-      height: 100%;
       border: 0;
       background: #fff;
       display: block;
@@ -108,16 +121,17 @@
   <header class="portal-header">
     <div class="portal-brand">
       <strong>关务一体化整合门户</strong>
-      <span>智能工作台 · 经营分析看板 · 海外关务 · 海关认证 AEO（GitHub Pages 嵌入）</span>
+      <span>智能工作台 · 经营分析看板 · 海外关务 · AEO · HTS 知识库（Railway）</span>
     </div>
     <nav class="tabs" role="tablist" aria-label="子系统切换">
       <button type="button" role="tab" data-target="f-workbench" class="active" aria-selected="true">GTM 智能协作工作台</button>
       <button type="button" role="tab" data-target="f-dashboard" aria-selected="false">关务经营分析看板</button>
       <button type="button" role="tab" data-target="f-prototype" aria-selected="false">海外关务管理系统</button>
       <button type="button" role="tab" data-target="f-aeo" aria-selected="false">海关认证 AEO</button>
+      <button type="button" role="tab" data-target="f-hts" aria-selected="false">HTS 知识库</button>
     </nav>
   </header>
-  <p class="portal-hint">前三项需与本页同目录；「海关认证 AEO」嵌入线上 <code>https://xuhuibing.github.io/CN-AEO/</code>（联网预览）。</p>
+  <p class="portal-hint">前三项需与本页同目录；AEO 与 HTS 为外链嵌入（需联网）。若 iframe 空白，请用页内「新标签打开」。</p>
   <main class="portal-main">
     <div id="f-workbench" class="frame-wrap active" role="tabpanel" aria-hidden="false">
       <iframe title="GTM 智能协作工作台" src="workbench.html"></iframe>
@@ -131,6 +145,13 @@
     <div id="f-aeo" class="frame-wrap" role="tabpanel" aria-hidden="true">
       <iframe title="海关认证 AEO 稽核系统" data-src="https://xuhuibing.github.io/CN-AEO/" loading="lazy"></iframe>
     </div>
+    <div id="f-hts" class="frame-wrap" role="tabpanel" aria-hidden="true">
+      <div class="embed-bar">
+        Railway · HTS 知识库
+        <a href="https://hts-knowledge-base-production-7249.up.railway.app/" target="_blank" rel="noopener noreferrer">新标签页打开</a>
+      </div>
+      <iframe title="HTS 知识库" data-src="https://hts-knowledge-base-production-7249.up.railway.app/" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
   </main>
   <script>
     (function () {
@@ -139,7 +160,8 @@
         "f-workbench": document.getElementById("f-workbench"),
         "f-dashboard": document.getElementById("f-dashboard"),
         "f-prototype": document.getElementById("f-prototype"),
-        "f-aeo": document.getElementById("f-aeo")
+        "f-aeo": document.getElementById("f-aeo"),
+        "f-hts": document.getElementById("f-hts")
       };
 
       function lazyLoadIframe(panel) {

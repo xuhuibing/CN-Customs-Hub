@@ -845,6 +845,349 @@ function renderProductDetail() {
     </div>`;
 }
 
+// ============ HTS KNOWLEDGE BASE API ============
+const HTS_API_BASE = 'https://hts-knowledge-base-production-7249.up.railway.app/api/v1';
+let htsApiCache = {};  // simple in-memory cache
+let htsSearchResults = null;  // latest search result for rendering
+let htsDetailResult = null;   // latest detail result
+let htsApiLoading = false;
+let htsApiError = null;
+let htsApiCountry = 'US'; // US or IN
+
+async function htsApiFetch(path) {
+  const url = HTS_API_BASE + path;
+  if (htsApiCache[url]) return htsApiCache[url];
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('API ' + resp.status + ': ' + (await resp.text()).substring(0,200));
+  const data = await resp.json();
+  htsApiCache[url] = data;
+  return data;
+}
+
+async function htsApiSearch(keyword, country) {
+  htsApiLoading = true; htsApiError = null; htsSearchResults = null; htsDetailResult = null;
+  htsApiCountry = country || 'US';
+  render();
+  try {
+    if (htsApiCountry === 'US') {
+      htsSearchResults = await htsApiFetch('/hts/search?keyword=' + encodeURIComponent(keyword) + '&limit=30');
+    } else {
+      htsSearchResults = await htsApiFetch('/itchs/search?keyword=' + encodeURIComponent(keyword) + '&limit=30');
+    }
+  } catch(e) { htsApiError = e.message; }
+  htsApiLoading = false;
+  render();
+}
+
+async function htsApiGetDetail(code, country) {
+  htsApiLoading = true; htsApiError = null; htsDetailResult = null;
+  htsApiCountry = country || 'US';
+  render();
+  try {
+    if (htsApiCountry === 'US') {
+      const [detail, rates, china301, sec232, sec122, sec201] = await Promise.all([
+        htsApiFetch('/hts/subheadings?hts_code=' + encodeURIComponent(code) + '&limit=20'),
+        htsApiFetch('/hts/rates?hts_code=' + encodeURIComponent(code) + '&limit=20'),
+        htsApiFetch('/hts/china-tariff?hts_code=' + encodeURIComponent(code)).catch(()=>null),
+        htsApiFetch('/hts/section-232-tariff?hts_code=' + encodeURIComponent(code)).catch(()=>null),
+        htsApiFetch('/hts/section-122-tariff?hts_code=' + encodeURIComponent(code)).catch(()=>null),
+        htsApiFetch('/hts/section-201-tariff?hts_code=' + encodeURIComponent(code)).catch(()=>null),
+      ]);
+      htsDetailResult = { code, country: 'US', subheadings: detail, rates, china301, sec232, sec122, sec201 };
+    } else {
+      const items = await htsApiFetch('/itchs/tariff-items?itc_code=' + encodeURIComponent(code) + '&limit=20');
+      let dutyDetail = null;
+      // try to get duty for the exact code
+      try { dutyDetail = await htsApiFetch('/itchs/duty-calculator?itc_code=' + encodeURIComponent(code)); } catch(e){}
+      // If not found, try first item from list
+      if (!dutyDetail && items.length > 0) {
+        try { dutyDetail = await htsApiFetch('/itchs/duty-calculator?itc_code=' + encodeURIComponent(items[0].itc_code)); } catch(e){}
+      }
+      htsDetailResult = { code, country: 'IN', items, dutyDetail };
+    }
+  } catch(e) { htsApiError = e.message; }
+  htsApiLoading = false;
+  render();
+}
+
+function renderHtsApiOnline() {
+  const selCountry = getTab('hts-api-cc', 'US');
+  const searchMode = getTab('hts-api-mode', 'search'); // search | detail
+
+  let html = `<div class="card"><div class="card-title">🔗 在线税则查询 (HTS Knowledge Base API)
+    <div style="font-size:12px;color:#8c8c8c;font-weight:normal">实时对接 hts-knowledge-base API</div></div>
+    <div class="tabs">
+      <div class="tab ${selCountry==='US'?'active':''}" onclick="switchTab('hts-api-cc','US');htsSearchResults=null;htsDetailResult=null;htsApiError=null;render()">🇺🇸 美国 HTS</div>
+      <div class="tab ${selCountry==='IN'?'active':''}" onclick="switchTab('hts-api-cc','IN');htsSearchResults=null;htsDetailResult=null;htsApiError=null;render()">🇮🇳 印度 ITC-HS</div>
+    </div>
+    <div class="tabs" style="margin-top:4px">
+      <div class="tab ${searchMode==='search'?'active':''}" onclick="switchTab('hts-api-mode','search');htsDetailResult=null;render()">🔍 关键词搜索</div>
+      <div class="tab ${searchMode==='detail'?'active':''}" onclick="switchTab('hts-api-mode','detail');htsSearchResults=null;render()">📋 编码查询(含税率)</div>
+    </div>`;
+
+  if (searchMode === 'search') {
+    html += `<div class="filter-bar" style="margin-top:12px">
+      <input class="form-input" id="hts-api-kw" placeholder="${selCountry==='US'?'输入关键词或HTS编码 (如 laptop, 8471...)':'输入关键词或ITC编码 (如 computer, 8471...)'}" style="width:400px"
+        onkeydown="if(event.key==='Enter'){document.getElementById('hts-api-search-btn').click()}">
+      <button class="btn btn-primary" id="hts-api-search-btn" onclick="htsApiSearch(document.getElementById('hts-api-kw').value,'${selCountry}')">🔍 在线搜索</button>
+    </div>`;
+  } else {
+    html += `<div class="filter-bar" style="margin-top:12px">
+      <input class="form-input" id="hts-api-code" placeholder="${selCountry==='US'?'输入HTS编码 (如 8471300100)':'输入ITC编码 (如 84713010)'}" style="width:400px"
+        onkeydown="if(event.key==='Enter'){document.getElementById('hts-api-detail-btn').click()}">
+      <button class="btn btn-primary" id="hts-api-detail-btn" onclick="htsApiGetDetail(document.getElementById('hts-api-code').value,'${selCountry}')">📋 查询税则详情</button>
+    </div>`;
+  }
+
+  // Loading
+  if (htsApiLoading) {
+    html += '<div style="text-align:center;padding:40px;color:#1677ff;font-size:16px">⏳ 正在从 HTS Knowledge Base 获取数据...</div>';
+  }
+  // Error
+  else if (htsApiError) {
+    html += '<div class="alert" style="background:#fff2f0;border:1px solid #ffccc7;color:#cf1322;margin-top:12px">❌ API调用失败: ' + htsApiError + '</div>';
+  }
+  // Search results
+  else if (htsSearchResults && searchMode === 'search') {
+    html += renderHtsApiSearchResults(selCountry);
+  }
+  // Detail results
+  else if (htsDetailResult && searchMode === 'detail') {
+    html += renderHtsApiDetailResults();
+  }
+  else {
+    html += `<div style="text-align:center;padding:40px;color:#8c8c8c">
+      <div style="font-size:48px;margin-bottom:12px">${selCountry==='US'?'🇺🇸':'🇮🇳'}</div>
+      <div style="font-size:16px">${selCountry==='US'?'美国海关HTS税则库 — 29,581条子目 / 36,862条税率':'印度ITC-HS税则库 — 17,312条税则 / 12,398条关税'}</div>
+      <div style="margin-top:8px;font-size:13px">输入关键词或编码开始查询</div>
+    </div>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderHtsApiSearchResults(cc) {
+  const r = htsSearchResults;
+  if (!r) return '';
+  const hasChapters = r.chapters && r.chapters.length > 0;
+  const hasHeadings = r.headings && r.headings.length > 0;
+  const hasSubs = cc === 'US' ? (r.subheadings && r.subheadings.length > 0) : (r.tariff_items && r.tariff_items.length > 0);
+  const totalCount = (r.chapters?.length||0) + (r.headings?.length||0) + (cc==='US' ? (r.subheadings?.length||0) : (r.tariff_items?.length||0));
+
+  let html = `<div class="section-title" style="margin-top:16px">🔍 搜索结果 (${totalCount} 条) — ${cc==='US'?'🇺🇸 美国HTS':'🇮🇳 印度ITC-HS'}</div>`;
+
+  if (totalCount === 0) {
+    return html + '<div style="text-align:center;padding:20px;color:#8c8c8c">未找到匹配结果</div>';
+  }
+
+  if (hasChapters) {
+    html += `<div class="section-title" style="font-size:13px;color:#722ed1">📖 章 (Chapters) — ${r.chapters.length} 条</div>
+    <table class="data-table"><thead><tr><th>章号</th><th>英文名称</th><th>操作</th></tr></thead><tbody>
+    ${r.chapters.map(ch=>`<tr><td><strong>第${ch.chapter_number||ch.chapter_code}章</strong></td><td>${ch.title}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="htsApiGetDetail('${ch.chapter_number||ch.chapter_code}','${cc}');switchTab('hts-api-mode','detail')">查看详情</button></td></tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  if (hasHeadings) {
+    html += `<div class="section-title" style="font-size:13px;color:#13c2c2">📋 品目 (Headings) — ${r.headings.length} 条</div>
+    <table class="data-table"><thead><tr><th>编码</th><th>英文名称</th><th>操作</th></tr></thead><tbody>
+    ${r.headings.map(h=>`<tr><td><code style="font-weight:600;color:#0958d9">${h.heading_code||h.code||''}</code></td><td>${h.title}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="htsApiGetDetail('${h.heading_code||h.code||''}','${cc}');switchTab('hts-api-mode','detail')">查税率</button></td></tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  if (hasSubs) {
+    const items = cc === 'US' ? r.subheadings : r.tariff_items;
+    const codeField = cc === 'US' ? 'hts_code' : 'itc_code';
+    const fmtField = cc === 'US' ? 'hts_number' : 'itc_code_formatted';
+    html += `<div class="section-title" style="font-size:13px;color:#fa541c">${cc==='US'?'📑 子目 (Subheadings)':'📑 税则条目 (Tariff Items)'} — ${items.length} 条</div>
+    <table class="data-table"><thead><tr><th>编码</th><th>格式化编码</th><th>英文名称</th><th>章</th>${cc==='IN'?'<th>计量</th><th>政策</th>':''}<th>操作</th></tr></thead><tbody>
+    ${items.map(s=>`<tr>
+      <td><code style="font-weight:600;color:#0958d9">${s[codeField]}</code></td>
+      <td><code>${s[fmtField]||''}</code></td>
+      <td style="font-size:12px">${s.title}</td>
+      <td>第${s.chapter_number}章</td>
+      ${cc==='IN'?`<td>${s.uqc||'-'}</td><td>${s.policy_code||'-'}</td>`:''}
+      <td><button class="btn btn-sm btn-primary" onclick="htsApiGetDetail('${s[codeField]}','${cc}');switchTab('hts-api-mode','detail')">📊 查税率</button></td>
+    </tr>`).join('')}
+    </tbody></table>`;
+  }
+  return html;
+}
+
+function renderHtsApiDetailResults() {
+  const d = htsDetailResult;
+  if (!d) return '';
+
+  if (d.country === 'US') return renderHtsApiDetailUS(d);
+  if (d.country === 'IN') return renderHtsApiDetailIN(d);
+  return '';
+}
+
+function renderHtsApiDetailUS(d) {
+  let html = `<div class="section-title" style="margin-top:16px">🇺🇸 美国HTS查询结果 — <code style="font-size:16px">${d.code}</code></div>`;
+
+  // Subheadings
+  if (d.subheadings && d.subheadings.length > 0) {
+    html += `<div class="section-title" style="font-size:13px">📑 匹配子目 (${d.subheadings.length} 条)</div>
+    <table class="data-table"><thead><tr><th>HTS Code</th><th>HTS Number</th><th>Description</th><th>Chapter</th><th>操作</th></tr></thead><tbody>
+    ${d.subheadings.map(s=>`<tr>
+      <td><code style="font-weight:600;color:#0958d9">${s.hts_code}</code></td>
+      <td><code>${s.hts_number||''}</code></td>
+      <td style="font-size:12px">${s.title}</td>
+      <td>Ch.${s.chapter_number}</td>
+      <td><button class="btn btn-sm" onclick="htsApiGetDetail('${s.hts_code}','US')">详细税率</button></td>
+    </tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  // Rates
+  if (d.rates && d.rates.length > 0) {
+    html += `<div class="section-title" style="font-size:13px">💰 税率信息 (Rates)</div>
+    <table class="data-table"><thead><tr><th>HTS Code</th><th>税率类型</th><th>税率值(%)</th><th>税率文本</th><th>特别计划</th></tr></thead><tbody>
+    ${d.rates.map(r=>`<tr>
+      <td><code>${r.hts_code}</code></td>
+      <td>${tag(r.rate_type, r.rate_type==='General'?'tag-green':'tag-orange')}</td>
+      <td style="font-weight:700;font-size:15px;color:${r.rate_value>0?'#ff4d4f':'#52c41a'}">${r.rate_value!=null?r.rate_value+'%':'—'}</td>
+      <td>${r.rate_text||'—'}</td>
+      <td style="font-size:11px">${r.special_program_indicator||'—'}</td>
+    </tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  // China 301 Tariff
+  if (d.china301) {
+    const c = d.china301;
+    const hasItems = c.items && c.items.length > 0;
+    const hasTariffs = c.china_additional_tariffs && c.china_additional_tariffs.length > 0;
+    html += `<div class="section-title" style="font-size:13px;color:#ff4d4f">🇨🇳 Section 301 对华加征关税</div>`;
+    if (hasItems) {
+      html += `<table class="data-table"><thead><tr><th>HTS Code</th><th>Description</th><th>General Rate</th><th>是否免税</th></tr></thead><tbody>
+      ${c.items.map(it=>`<tr>
+        <td><code>${it.hts_code}</code> (${it.hts_number||''})</td>
+        <td style="font-size:12px">${it.title}</td>
+        <td>${it.rates?.General?`<span style="font-weight:700;color:${it.rates.General.rate_value>0?'#ff4d4f':'#52c41a'}">${it.rates.General.rate_text}</span>`:'—'}
+          ${it.rates?.['Column 2']?` / Col.2: ${it.rates['Column 2'].rate_text}`:''}</td>
+        <td>${it.is_free?tag('免税','tag-green'):tag('征税','tag-red')}</td>
+      </tr>`).join('')}
+      </tbody></table>`;
+    }
+    if (hasTariffs) {
+      html += `<div class="alert" style="background:#fff2f0;border:1px solid #ffccc7;margin-top:8px"><strong>⚠️ 301加征关税：</strong>
+      ${c.china_additional_tariffs.map(t=>`<div style="margin:4px 0">List ${t.list||''}: <strong style="color:#ff4d4f">${t.rate||t.rate_text||'—'}</strong> ${t.title||''}</div>`).join('')}
+      </div>`;
+    }
+    if (c.tariff_summary && c.tariff_summary.length > 0) {
+      html += `<div class="alert" style="background:#fffbe6;border:1px solid #ffe58f;margin-top:8px"><strong>📊 关税摘要：</strong>
+      ${c.tariff_summary.map(s=>`<div>${s}</div>`).join('')}</div>`;
+    }
+    if (!hasItems && !hasTariffs) {
+      html += `<div class="alert" style="background:#f6ffed;border:1px solid #b7eb8f">✅ 该商品不在Section 301对华加征关税清单中</div>`;
+    }
+  }
+
+  // Section 232
+  if (d.sec232 && d.sec232.is_232_applicable) {
+    html += `<div class="section-title" style="font-size:13px;color:#fa8c16">🏗️ Section 232 关税 (钢铁/铝/铜)</div>
+    <div class="alert" style="background:#fff7e6;border:1px solid #ffd591"><strong>⚠️ 适用232关税</strong> — 产品类型: ${d.sec232.product_type||'—'}
+    ${d.sec232.applicable_entries?.map(e=>`<div style="margin:4px 0">${e.hts_number}: <strong>${e.general_rate||''}</strong></div>`).join('')||''}
+    </div>`;
+  }
+
+  // Section 122 (IEEPA)
+  if (d.sec122 && d.sec122.is_122_applicable) {
+    const exemptCount = d.sec122.exempt_count || 0;
+    html += `<div class="section-title" style="font-size:13px;color:#eb2f96">🌐 Section 122 / IEEPA 全球关税</div>
+    <div class="alert" style="background:#fff0f6;border:1px solid #ffadd2">
+      <strong>⚠️ 适用IEEPA全球加征关税: +${d.sec122.rate||10}%</strong>
+      ${exemptCount>0?`<div style="margin-top:4px;color:#52c41a">✅ 发现 ${exemptCount} 项豁免条目</div>`:''}
+    </div>`;
+    if (d.sec122.tariff_entries && d.sec122.tariff_entries.length > 0) {
+      html += `<table class="data-table"><thead><tr><th>HTS Number</th><th>说明</th><th>税率</th><th>类型</th></tr></thead><tbody>
+      ${d.sec122.tariff_entries.slice(0,6).map(e=>`<tr>
+        <td><code>${e.hts_number}</code></td><td style="font-size:11px;max-width:400px">${(e.title||'').substring(0,150)}${(e.title||'').length>150?'...':''}</td>
+        <td style="font-weight:600;color:${e.rate_value>0?'#ff4d4f':'#52c41a'}">${e.rate_value!=null?'+'+e.rate_value+'%':'基础税率'}</td>
+        <td>${e.is_exemption?tag('豁免','tag-green'):tag('加征','tag-red')}</td>
+      </tr>`).join('')}
+      ${d.sec122.tariff_entries.length>6?`<tr><td colspan="4" style="text-align:center;color:#8c8c8c">... 共 ${d.sec122.tariff_entries.length} 条条目</td></tr>`:''}
+      </tbody></table>`;
+    }
+  }
+
+  // Section 201
+  if (d.sec201 && d.sec201.is_201_applicable) {
+    html += `<div class="section-title" style="font-size:13px;color:#2f54eb">🛡️ Section 201 保障措施关税</div>
+    <div class="alert" style="background:#f0f5ff;border:1px solid #adc6ff"><strong>⚠️ 适用201保障措施关税</strong>
+    ${d.sec201.tariff_entries?.map(e=>`<div style="margin:4px 0">${e.hts_number}: ${e.general_rate||''}</div>`).join('')||''}
+    </div>`;
+  }
+
+  if ((!d.subheadings || d.subheadings.length===0) && (!d.rates || d.rates.length===0)) {
+    html += '<div style="text-align:center;padding:20px;color:#8c8c8c">未找到该编码的税则信息，请尝试其他编码格式</div>';
+  }
+
+  return html;
+}
+
+function renderHtsApiDetailIN(d) {
+  let html = `<div class="section-title" style="margin-top:16px">🇮🇳 印度ITC-HS查询结果 — <code style="font-size:16px">${d.code}</code></div>`;
+
+  if (d.items && d.items.length > 0) {
+    html += `<div class="section-title" style="font-size:13px">📑 匹配税则条目 (${d.items.length} 条)</div>
+    <table class="data-table"><thead><tr><th>ITC Code</th><th>格式化</th><th>Description</th><th>计量单位</th><th>政策</th><th>操作</th></tr></thead><tbody>
+    ${d.items.map(it=>`<tr>
+      <td><code style="font-weight:600;color:#0958d9">${it.itc_code}</code></td>
+      <td><code>${it.itc_code_formatted||''}</code></td>
+      <td style="font-size:12px">${it.title}</td>
+      <td>${it.uqc||'-'}</td>
+      <td>${it.policy_code?tag(it.policy_code, it.policy_code==='Free'?'tag-green':'tag-blue'):'—'}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="htsApiGetDetail('${it.itc_code}','IN')">查关税</button></td>
+    </tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  // Duty detail
+  if (d.dutyDetail) {
+    const dd = d.dutyDetail;
+    if (dd.items && dd.items.length > 0) {
+      const item = dd.items[0];
+      html += `<div class="section-title" style="font-size:13px">💰 关税计算结果</div>`;
+      if (dd.chapter) {
+        html += `<div class="alert" style="background:#e6f7ff;border:1px solid #91d5ff">
+          <strong>第${dd.chapter.chapter_number}章</strong> — ${dd.chapter.title}
+          ${dd.chapter.section?` | 第${dd.chapter.section.section_number}类(${dd.chapter.section.section_roman}) ${dd.chapter.section.title.substring(0,80)}...`:''}
+        </div>`;
+      }
+      html += `<div class="form-row-3" style="margin-top:12px">
+        <div class="stat-card" style="border-left:4px solid #0958d9"><div class="label">ITC Code</div><div class="value" style="font-size:14px"><code>${item.itc_code_formatted||item.itc_code}</code></div><div class="sub">${item.title}</div></div>
+        <div class="stat-card" style="border-left:4px solid #52c41a"><div class="label">政策</div><div class="value" style="font-size:14px">${item.policy_code||'—'}</div></div>
+        <div class="stat-card" style="border-left:4px solid #ff4d4f"><div class="label">有效到岸成本率</div><div class="value" style="font-size:20px;color:#ff4d4f">${item.duty?.effective_landed_cost!=null?item.duty.effective_landed_cost+'%':'—'}</div></div>
+      </div>`;
+
+      if (item.duty && item.duty.components && item.duty.components.length > 0) {
+        html += `<table class="data-table" style="margin-top:12px"><thead><tr><th>税种</th><th>英文名称</th><th>税率</th></tr></thead><tbody>
+        ${item.duty.components.map(c=>`<tr>
+          <td><strong>${c.key.toUpperCase()}</strong></td>
+          <td>${c.label}</td>
+          <td style="font-weight:700;font-size:15px;color:${c.rate>0?'#ff4d4f':'#52c41a'}">${c.rate}%</td>
+        </tr>`).join('')}
+        <tr style="background:#f0f5ff"><td colspan="2" style="font-weight:700">📊 有效到岸成本率 (Effective Landed Cost)</td>
+          <td style="font-weight:700;font-size:18px;color:#ff4d4f">${item.duty.effective_landed_cost}%</td></tr>
+        </tbody></table>`;
+        if (item.duty.igst_notn) {
+          html += `<div style="margin-top:8px;font-size:12px;color:#8c8c8c">IGST通知号: ${item.duty.igst_notn}</div>`;
+        }
+      }
+    }
+  }
+
+  if ((!d.items || d.items.length===0) && !d.dutyDetail) {
+    html += '<div style="text-align:center;padding:20px;color:#8c8c8c">未找到该编码的税则信息</div>';
+  }
+  return html;
+}
+
 // ============ GLOBAL TARIFF LIBRARY (全球税则库) ============
 function renderHsSearch() {
   const mainTab = getTab('hs-main','chapter');  // chapter | country | compare
@@ -855,11 +1198,11 @@ function renderHsSearch() {
   const compareHs = getTab('hs-cmp', MOCK_HS_COMPARE[0]?.hs4 || '8471');
 
   let html = `<div class="card"><div class="card-title">🌐 全球税则库 (Global Tariff Library)</div>
-    <div class="alert alert-warning" style="margin-bottom:12px">🔌 预留接口：可对接各国海关税则数据库API / 知识库（如WCO、各国海关官网），获取最新HS编码及税率信息</div>
     <div class="tabs">
       <div class="tab ${mainTab==='chapter'?'active':''}" onclick="switchTab('hs-main','chapter')">📖 章节目录</div>
       <div class="tab ${mainTab==='country'?'active':''}" onclick="switchTab('hs-main','country')">🌍 各国税则</div>
       <div class="tab ${mainTab==='compare'?'active':''}" onclick="switchTab('hs-main','compare')" style="color:#1677ff;font-weight:600">📊 HS比较表</div>
+      <div class="tab ${mainTab==='online'?'active':''}" onclick="switchTab('hs-main','online')" style="color:#52c41a;font-weight:600">🔗 在线税则查询 (US/IN)</div>
     </div>`;
 
   // ===== TAB 1: 章节目录 =====
@@ -963,6 +1306,12 @@ function renderHsSearch() {
       </div>`;
     }).join('')}
     </div>`;
+  }
+
+  // ===== TAB 4: 在线税则查询 =====
+  else if (mainTab === 'online') {
+    html += renderHtsApiOnline();
+    return html;  // online tab has its own card wrapper
   }
 
   html += `</div>`;
